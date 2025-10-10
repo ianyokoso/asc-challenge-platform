@@ -7,16 +7,16 @@
  * - PATCH: 버그 수정 및 작은 개선
  */
 
-export const APP_VERSION = '1.2.1';
+export const APP_VERSION = '1.2.2';
 
 export const VERSION_HISTORY = [
   {
-    version: '1.2.1',
+    version: '1.2.2',
     date: '2025-10-10',
     changes: [
-      '무한 로딩 문제 수정',
-      '트랙이 없는 사용자 조회 개선',
-      '에러 핸들링 강화',
+      '관리자 페이지 트랙 배정 무한 로딩 수정',
+      'Import 경로 오류 수정',
+      '관리자 기능 안정성 개선',
     ],
   },
   {

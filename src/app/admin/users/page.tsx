@@ -20,7 +20,8 @@ import {
 import { getUser } from '@/lib/supabase/client';
 import { useIsAdmin } from '@/hooks/useAdmin';
 import { useRouter } from 'next/navigation';
-import { getAllTracks, assignUserToTracks, getUsersWithTracks } from '@/lib/supabase/database';
+import { getAllTracks } from '@/lib/supabase/database';
+import { assignUserToTracks, getUsersWithTracks } from '@/lib/supabase/admin';
 import { useToast } from '@/hooks/use-toast';
 
 export default function AdminUsersPage() {
