@@ -7,9 +7,19 @@
  * - PATCH: 버그 수정 및 작은 개선
  */
 
-export const APP_VERSION = '1.2.6';
+export const APP_VERSION = '1.3.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.3.0',
+    date: '2025-10-10',
+    changes: [
+      '로그인 테스트를 위한 UI 단순화',
+      '메인 페이지 모든 섹션 제거',
+      '로그인 페이지 간소화',
+      '불필요한 기능 모두 제거',
+    ],
+  },
   {
     version: '1.2.6',
     date: '2025-10-10',

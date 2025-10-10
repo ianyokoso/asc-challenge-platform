@@ -4,81 +4,43 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Trophy } from 'lucide-react';
 import { signInWithDiscord } from '@/lib/supabase/client';
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
 
-  // Check if Supabase is configured
-  const isSupabaseConfigured =
-    process.env.NEXT_PUBLIC_SUPABASE_URL &&
-    process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://placeholder.supabase.co';
-
   const handleDiscordLogin = async () => {
-    if (!isSupabaseConfigured) {
-      alert(
-        'Discord OAuth2가 아직 설정되지 않았습니다.\n\n' +
-          '설정 방법은 DISCORD_OAUTH_SETUP.md 파일을 참고하세요.\n' +
-          '지금은 "데모 계정으로 체험하기" 버튼을 사용하세요.'
-      );
-      return;
-    }
-
     try {
       setIsLoading(true);
       await signInWithDiscord();
     } catch (error) {
-      console.error('Login failed:', error);
+      console.error('❌ Login failed:', error);
       alert('로그인에 실패했습니다. 다시 시도해주세요.');
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-secondary/10 flex items-center justify-center px-4">
-      <Card className="w-full max-w-md p-8">
-        {/* Logo */}
-        <div className="flex justify-center mb-6">
-          <div className="bg-primary text-primary-foreground rounded-lg p-4">
-            <Trophy className="h-12 w-12" />
-          </div>
-        </div>
-
-        {/* Title */}
-        <h1 className="text-h3 font-heading text-gray-900 text-center mb-2">
+    <div className="min-h-screen flex items-center justify-center px-4 bg-gray-50">
+      <Card className="w-full max-w-md p-12">
+        <h1 className="text-4xl font-bold text-gray-900 text-center mb-4">
           ASC 챌린지
         </h1>
-        <p className="text-body text-gray-600 text-center mb-8">
-          Discord 계정으로 로그인하세요
+        <p className="text-lg text-gray-600 text-center mb-12">
+          로그인 테스트
         </p>
 
-        {/* Configuration Warning */}
-        {!isSupabaseConfigured && (
-          <div className="mb-4 p-4 bg-accent/10 border border-accent/30 rounded-lg">
-            <p className="text-body-sm text-gray-700">
-              ⚠️ Discord OAuth2가 설정되지 않았습니다.
-              <br />
-              <code className="text-body-xs bg-gray-100 px-1 py-0.5 rounded">
-                DISCORD_OAUTH_SETUP.md
-              </code>{' '}
-              파일을 참고하여 설정하세요.
-            </p>
-          </div>
-        )}
-
-        {/* Discord Login Button */}
         <Button
-          className="w-full bg-[#5865F2] hover:bg-[#4752C4] text-white font-semibold py-6 mb-4"
+          className="w-full bg-[#5865F2] hover:bg-[#4752C4] text-white font-semibold py-6 text-lg"
           onClick={handleDiscordLogin}
-          disabled={isLoading || !isSupabaseConfigured}
+          disabled={isLoading}
         >
           {isLoading ? (
             <>로그인 중...</>
           ) : (
             <>
               <svg
-                className="w-5 h-5 mr-2"
+                className="w-6 h-6 mr-2"
                 fill="currentColor"
                 viewBox="0 0 24 24"
                 xmlns="http://www.w3.org/2000/svg"
@@ -90,45 +52,12 @@ export default function LoginPage() {
           )}
         </Button>
 
-        {/* Info Text */}
-        <p className="text-body-sm text-gray-500 text-center mb-4">
-          로그인하면{' '}
-          <a href="#" className="text-primary hover:underline">
-            이용약관
-          </a>{' '}
-          및{' '}
-          <a href="#" className="text-primary hover:underline">
-            개인정보처리방침
-          </a>
-          에 동의하는 것으로 간주됩니다.
-        </p>
-
-        {/* Demo Login Button */}
-        <div className="relative mb-4">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-200"></div>
-          </div>
-          <div className="relative flex justify-center text-body-sm">
-            <span className="px-2 bg-card text-gray-500">또는</span>
-          </div>
-        </div>
-
-        <Link href="/tracks">
-          <Button
-            variant="outline"
-            className="w-full py-6 border-2 hover:bg-gray-50"
-          >
-            데모 계정으로 체험하기
-          </Button>
-        </Link>
-
-        {/* Back to Home */}
-        <div className="mt-6 text-center">
+        <div className="mt-8 text-center">
           <Link
             href="/"
-            className="text-body-sm text-primary hover:underline"
+            className="text-sm text-gray-500 hover:text-gray-700 hover:underline"
           >
-            홈으로 돌아가기
+            ← 홈으로 돌아가기
           </Link>
         </div>
       </Card>
