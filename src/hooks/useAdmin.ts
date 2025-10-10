@@ -2,11 +2,11 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { 
-  isUserAdmin, 
-  getAdminStats, 
+  isUserAdmin,
+  getAdminStats,
   getAllUsersWithStats,
   getDropoutCandidates 
-} from '@/lib/supabase/database';
+} from '@/lib/supabase/admin';
 
 export function useIsAdmin(userId?: string) {
   return useQuery({

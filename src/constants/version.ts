@@ -7,16 +7,17 @@
  * - PATCH: 버그 수정 및 작은 개선
  */
 
-export const APP_VERSION = '1.2.2';
+export const APP_VERSION = '1.2.3';
 
 export const VERSION_HISTORY = [
   {
-    version: '1.2.2',
+    version: '1.2.3',
     date: '2025-10-10',
     changes: [
-      '관리자 페이지 트랙 배정 무한 로딩 수정',
-      'Import 경로 오류 수정',
-      '관리자 기능 안정성 개선',
+      '관리자 로그인 문제 수정',
+      'Import 경로 오류 해결',
+      '로그인 과정 디버깅 강화',
+      'Admin 함수 정리 및 모듈화',
     ],
   },
   {

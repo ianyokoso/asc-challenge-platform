@@ -191,15 +191,18 @@ export async function getAllUsersWithStats() {
 export async function isUserAdmin(userId: string): Promise<boolean> {
   const supabase = createClient();
   
+  console.log('🔍 [isUserAdmin] Checking admin status for user:', userId);
+  
   const { data, error } = await supabase.rpc('is_admin', {
     check_user_id: userId,
   });
 
   if (error) {
-    console.error('Error checking admin status:', error);
+    console.error('❌ [isUserAdmin] Error checking admin status:', error);
     return false;
   }
 
+  console.log('✅ [isUserAdmin] Admin check result:', data);
   return data || false;
 }
 
