@@ -7,9 +7,20 @@
  * - PATCH: 버그 수정 및 작은 개선
  */
 
-export const APP_VERSION = '1.3.5';
+export const APP_VERSION = '1.4.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.4.0',
+    date: '2025-01-10',
+    changes: [
+      '트랙 선택 페이지(/tracks) 완전 제거',
+      '트랙이 없는 사용자용 관리자 문의 페이지 추가',
+      '관리자 페이지에서 기존 트랙 선택 상태 표시 개선',
+      '네비게이션에서 트랙 페이지 링크 제거',
+      '사용자 자동 리다이렉트 로직 추가',
+    ],
+  },
   {
     version: '1.3.5',
     date: '2025-01-10',

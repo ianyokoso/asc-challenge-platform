@@ -62,7 +62,14 @@ export function useUserAccess(): UserAccessResult {
             }
             
             console.log('[useUserAccess] ✅ User tracks count:', userTracks.length);
-            setHasAssignedTracks(userTracks.length > 0);
+            const hasTracks = userTracks.length > 0;
+            setHasAssignedTracks(hasTracks);
+            
+            // 트랙이 없고 현재 페이지가 contact-admin이 아닌 경우 리다이렉트
+            if (!hasTracks && typeof window !== 'undefined' && window.location.pathname !== '/contact-admin') {
+              console.log('[useUserAccess] 🔄 Redirecting to contact-admin page');
+              window.location.href = '/contact-admin';
+            }
           } catch (trackError) {
             console.error('[useUserAccess] ❌ Error fetching tracks:', trackError);
             

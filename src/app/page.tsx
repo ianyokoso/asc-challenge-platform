@@ -78,9 +78,9 @@ export default function Home() {
                         Discord로 시작하기
                       </Button>
                     </Link>
-                    <Link href="/tracks">
+                    <Link href="/contact-admin">
                       <Button variant="outline" size="lg" className="font-semibold text-lg px-8 py-6 rounded-xl">
-                        트랙 둘러보기
+                        트랙 배정 문의
                       </Button>
                     </Link>
                   </>
@@ -213,9 +213,9 @@ export default function Home() {
             </div>
 
             <div className="text-center mt-12">
-              <Link href="/tracks">
+              <Link href="/contact-admin">
                 <Button size="lg" variant="outline" className="font-semibold text-lg px-8 py-6 rounded-xl">
-                  모든 트랙 자세히 보기
+                  트랙 배정 문의하기
                 </Button>
               </Link>
             </div>

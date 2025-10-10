@@ -19,7 +19,6 @@ import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 const navigation = [
   { name: '홈', href: '/', icon: Home },
-  { name: '트랙 선택', href: '/tracks', icon: Home },
   { name: '인증하기', href: '/certify', icon: Calendar },
   { name: '캘린더', href: '/calendar', icon: Calendar },
   { name: '리더보드', href: '/leaderboard', icon: Trophy },

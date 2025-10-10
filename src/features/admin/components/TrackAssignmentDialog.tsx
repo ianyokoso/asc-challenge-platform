@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -30,12 +30,21 @@ export function TrackAssignmentDialog({
   tracks,
   onSave,
 }: TrackAssignmentDialogProps) {
-  const [selectedTrackIds, setSelectedTrackIds] = useState<string[]>(() => {
-    return user?.user_tracks
-      ?.filter((ut: any) => ut.is_active)
-      .map((ut: any) => ut.track_id) || [];
-  });
+  const [selectedTrackIds, setSelectedTrackIds] = useState<string[]>([]);
   const [isAssigning, setIsAssigning] = useState(false);
+
+  // 다이얼로그가 열릴 때마다 사용자의 기존 트랙을 초기화
+  useEffect(() => {
+    if (isOpen && user) {
+      console.log('[TrackAssignmentDialog] 🔄 Initializing with user tracks:', user);
+      const existingTrackIds = user?.user_tracks
+        ?.filter((ut: any) => ut.is_active)
+        .map((ut: any) => ut.track_id) || [];
+      
+      console.log('[TrackAssignmentDialog] ✅ Existing track IDs:', existingTrackIds);
+      setSelectedTrackIds(existingTrackIds);
+    }
+  }, [isOpen, user]);
 
   const handleTrackToggle = (trackId: string) => {
     setSelectedTrackIds(prev => {
