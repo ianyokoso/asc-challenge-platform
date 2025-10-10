@@ -655,29 +655,32 @@ export async function assignUserToTracks(
   const supabase = createClient();
   
   try {
-    // 1. 모든 트랙 비활성화
-    await supabase
+    // 1. 기존 트랙 모두 삭제
+    const { error: deleteError } = await supabase
       .from('user_tracks')
-      .update({ is_active: false })
+      .delete()
       .eq('user_id', userId);
 
-    // 2. 선택된 트랙들 활성화 또는 생성
+    if (deleteError) {
+      console.error('Error deleting existing tracks:', deleteError);
+      return false;
+    }
+
+    // 2. 새로운 트랙 추가
     if (trackIds.length > 0) {
-      const tracksToUpsert = trackIds.map(trackId => ({
+      const tracksToInsert = trackIds.map(trackId => ({
         user_id: userId,
         track_id: trackId,
         is_active: true,
         dropout_warnings: 0,
       }));
 
-      const { error } = await supabase
+      const { error: insertError } = await supabase
         .from('user_tracks')
-        .upsert(tracksToUpsert, {
-          onConflict: 'user_id,track_id',
-        });
+        .insert(tracksToInsert);
 
-      if (error) {
-        console.error('Error assigning user to tracks:', error);
+      if (insertError) {
+        console.error('Error inserting new tracks:', insertError);
         return false;
       }
     }
@@ -696,14 +699,14 @@ export async function getUsersWithTracks(): Promise<any[]> {
     .from('users')
     .select(`
       *,
-      user_tracks(
+      user_tracks!inner(
         id,
         track_id,
         is_active,
         track:tracks(*)
       )
     `)
-    .eq('is_active', true)
+    .eq('user_tracks.is_active', true)
     .order('created_at', { ascending: false });
 
   if (error) {
