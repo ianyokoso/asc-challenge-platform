@@ -56,6 +56,12 @@ export function TrackAssignmentDialog({
   };
 
   const handleSave = async () => {
+    // 최소 1개 이상의 트랙을 선택해야 함
+    if (selectedTrackIds.length === 0) {
+      alert('최소 1개 이상의 트랙을 선택해주세요.');
+      return;
+    }
+    
     setIsAssigning(true);
     try {
       await onSave(selectedTrackIds);
@@ -73,11 +79,18 @@ export function TrackAssignmentDialog({
         <DialogHeader>
           <DialogTitle>트랙 배정 관리</DialogTitle>
           <DialogDescription>
-            {user?.discord_username}에게 배정할 트랙을 선택하세요
+            {user?.discord_username}에게 배정할 트랙을 선택하세요 (최소 1개 이상)
           </DialogDescription>
         </DialogHeader>
         
         <div className="py-4 space-y-4">
+          {selectedTrackIds.length === 0 && (
+            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-sm text-yellow-800">
+                ⚠️ 최소 1개 이상의 트랙을 선택해주세요.
+              </p>
+            </div>
+          )}
           {tracks.map(track => {
             const isSelected = selectedTrackIds.includes(track.id);
             
@@ -117,7 +130,7 @@ export function TrackAssignmentDialog({
           </Button>
           <Button
             onClick={handleSave}
-            disabled={isAssigning}
+            disabled={isAssigning || selectedTrackIds.length === 0}
           >
             {isAssigning ? (
               <>

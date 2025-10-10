@@ -145,14 +145,9 @@ export default function AdminUsersPage() {
     const success = await assignUserToTracks(selectedUser.id, trackIds);
     
     if (success) {
-      const trackCount = trackIds.length;
-      const message = trackCount > 0 
-        ? `${selectedUser.discord_username}에게 ${trackCount}개의 트랙이 배정되었습니다.`
-        : `${selectedUser.discord_username}의 모든 트랙이 제거되었습니다.`;
-        
       toast({
         title: '트랙 배정 완료',
-        description: message,
+        description: `${selectedUser.discord_username}에게 ${trackIds.length}개의 트랙이 배정되었습니다.`,
       });
       
       // Refresh users list

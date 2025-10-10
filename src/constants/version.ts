@@ -7,9 +7,19 @@
  * - PATCH: 버그 수정 및 작은 개선
  */
 
-export const APP_VERSION = '1.4.1';
+export const APP_VERSION = '1.4.2';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.4.2',
+    date: '2025-01-10',
+    changes: [
+      '트랙 배정 시 최소 1개 이상 선택 필수로 변경',
+      '트랙 개별 제거 기능 개선 (3개 중 1개 제거 가능)',
+      '저장 버튼 선택 트랙 없을 시 비활성화',
+      '트랙 선택 유효성 검사 추가 및 안내 메시지 표시',
+    ],
+  },
   {
     version: '1.4.1',
     date: '2025-01-10',
