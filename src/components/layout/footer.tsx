@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { Github, Mail } from 'lucide-react';
+import { Github, Mail, Info } from 'lucide-react';
+import { APP_VERSION, getLatestVersion } from '@/constants/version';
 
 export function Footer() {
   return (
@@ -96,10 +97,37 @@ export function Footer() {
         </div>
 
         {/* Bottom */}
-        <div className="mt-8 pt-8 border-t border-gray-200 text-center">
-          <p className="text-body-sm text-gray-500">
-            © 2025 ASC 챌린지 인증 플랫폼. All rights reserved.
-          </p>
+        <div className="mt-8 pt-8 border-t border-gray-200">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+            <p className="text-body-sm text-gray-500">
+              © 2025 ASC 챌린지 인증 플랫폼. All rights reserved.
+            </p>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 text-body-sm text-gray-600">
+                <Info className="h-4 w-4" />
+                <span className="font-semibold">버전 {APP_VERSION}</span>
+              </div>
+              <div className="h-4 w-px bg-gray-300" />
+              <div className="text-body-xs text-gray-500">
+                최근 업데이트: {getLatestVersion().date}
+              </div>
+            </div>
+          </div>
+          
+          {/* 최근 변경사항 */}
+          <div className="mt-4 p-3 bg-gray-100 rounded-md">
+            <p className="text-body-xs font-semibold text-gray-700 mb-2">
+              📦 최근 변경사항 (v{getLatestVersion().version})
+            </p>
+            <ul className="space-y-1">
+              {getLatestVersion().changes.map((change, index) => (
+                <li key={index} className="text-body-xs text-gray-600 flex items-start gap-2">
+                  <span className="text-primary mt-0.5">•</span>
+                  <span>{change}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </div>
     </footer>
