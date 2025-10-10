@@ -25,19 +25,31 @@ export function useUserAccess(): UserAccessResult {
       
       try {
         const user = await getUser();
-        setUserId(user?.id || null);
+        const currentUserId = user?.id || null;
+        setUserId(currentUserId);
         
-        if (user?.id) {
-          const userTracks = await getUserTracks(user.id);
-          setHasAssignedTracks(userTracks.length > 0);
+        console.log('[useUserAccess] User ID:', currentUserId);
+        
+        if (currentUserId) {
+          try {
+            const userTracks = await getUserTracks(currentUserId);
+            console.log('[useUserAccess] User tracks:', userTracks.length);
+            setHasAssignedTracks(userTracks.length > 0);
+          } catch (trackError) {
+            console.error('[useUserAccess] Error fetching tracks:', trackError);
+            // RLS 오류 등이 발생해도 계속 진행
+            setHasAssignedTracks(false);
+          }
         } else {
+          console.log('[useUserAccess] No user logged in');
           setHasAssignedTracks(false);
         }
       } catch (error) {
-        console.error('Error checking user access:', error);
+        console.error('[useUserAccess] Error checking user access:', error);
         setUserId(null);
         setHasAssignedTracks(false);
       } finally {
+        console.log('[useUserAccess] Loading complete');
         setIsLoading(false);
       }
     };

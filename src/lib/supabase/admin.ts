@@ -59,6 +59,7 @@ export async function assignUserToTracks(
 
 /**
  * 모든 사용자와 그들의 트랙 정보를 가져옵니다.
+ * 트랙이 없는 사용자도 포함됩니다.
  * 
  * @returns 사용자 목록 (트랙 정보 포함)
  */
@@ -69,7 +70,7 @@ export async function getUsersWithTracks(): Promise<any[]> {
     .from('users')
     .select(`
       *,
-      user_tracks!inner(
+      user_tracks(
         id,
         track_id,
         is_active,
@@ -77,7 +78,7 @@ export async function getUsersWithTracks(): Promise<any[]> {
         track:tracks(*)
       )
     `)
-    .eq('user_tracks.is_active', true)
+    .eq('is_active', true)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -85,7 +86,13 @@ export async function getUsersWithTracks(): Promise<any[]> {
     return [];
   }
 
-  return data || [];
+  // Filter to only show active tracks in the returned data
+  const usersWithActiveTracks = (data || []).map(user => ({
+    ...user,
+    user_tracks: user.user_tracks?.filter((ut: any) => ut.is_active) || [],
+  }));
+
+  return usersWithActiveTracks;
 }
 
 /**
