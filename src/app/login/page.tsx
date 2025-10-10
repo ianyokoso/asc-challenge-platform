@@ -26,12 +26,10 @@ export default function LoginPage() {
     }
 
     try {
-      console.log('🔍 [LoginPage] Starting Discord login...');
       setIsLoading(true);
       await signInWithDiscord();
-      console.log('✅ [LoginPage] Discord login initiated successfully');
     } catch (error) {
-      console.error('❌ [LoginPage] Login failed:', error);
+      console.error('Login failed:', error);
       alert('로그인에 실패했습니다. 다시 시도해주세요.');
       setIsLoading(false);
     }

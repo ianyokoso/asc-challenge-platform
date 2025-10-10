@@ -7,17 +7,16 @@
  * - PATCH: 버그 수정 및 작은 개선
  */
 
-export const APP_VERSION = '1.2.4';
+export const APP_VERSION = '1.2.5';
 
 export const VERSION_HISTORY = [
   {
-    version: '1.2.4',
+    version: '1.2.5',
     date: '2025-10-10',
     changes: [
-      '로그인 과정 상세 디버깅 추가',
-      '사용자 세션 상태 추적 강화',
-      '로그인 실패 원인 분석 개선',
-      'OAuth 플로우 디버깅 로그 추가',
+      '로그인 디버깅 코드 롤백',
+      '깔끔한 로그인 플로우 복원',
+      '불필요한 콘솔 로그 제거',
     ],
   },
   {
