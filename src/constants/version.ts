@@ -7,9 +7,19 @@
  * - PATCH: 버그 수정 및 작은 개선
  */
 
-export const APP_VERSION = '1.3.0';
+export const APP_VERSION = '1.3.1';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.3.1',
+    date: '2025-10-10',
+    changes: [
+      'OAuth 콜백 쿠키 처리 개선',
+      '로그인 상태 실시간 표시',
+      '로그아웃 기능 추가',
+      '콜백 디버깅 로그 추가',
+    ],
+  },
   {
     version: '1.3.0',
     date: '2025-10-10',

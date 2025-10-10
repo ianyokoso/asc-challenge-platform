@@ -1,7 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
-import type { CookieOptions } from '@supabase/ssr';
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
@@ -9,9 +8,13 @@ export async function GET(request: Request) {
   const error = requestUrl.searchParams.get('error');
   const errorDescription = requestUrl.searchParams.get('error_description');
 
+  console.log('🔍 [Callback] Starting OAuth callback processing...');
+  console.log('🔍 [Callback] Code:', code ? 'present' : 'missing');
+  console.log('🔍 [Callback] Error:', error);
+
   // Handle OAuth errors
   if (error) {
-    console.error('OAuth error:', error, errorDescription);
+    console.error('❌ [Callback] OAuth error:', error, errorDescription);
     return NextResponse.redirect(
       new URL(`/login?error=${encodeURIComponent(errorDescription || error)}`, requestUrl.origin)
     );
@@ -19,6 +22,7 @@ export async function GET(request: Request) {
 
   if (code) {
     const cookieStore = await cookies();
+    const response = NextResponse.redirect(new URL('/', requestUrl.origin));
     
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -29,31 +33,26 @@ export async function GET(request: Request) {
             return cookieStore.getAll();
           },
           setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              );
-            } catch {
-              // The `setAll` method was called from a Server Component.
-              // This can be ignored if you have middleware refreshing
-              // user sessions.
-            }
+            cookiesToSet.forEach(({ name, value, options }) => {
+              response.cookies.set(name, value, options);
+            });
           },
         },
       }
     );
     
+    console.log('🔍 [Callback] Exchanging code for session...');
     const { data, error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
     
     if (sessionError) {
-      console.error('Session exchange error:', sessionError);
+      console.error('❌ [Callback] Session exchange error:', sessionError);
       return NextResponse.redirect(
         new URL(`/login?error=${encodeURIComponent(sessionError.message)}`, requestUrl.origin)
       );
     }
 
     if (data.session && data.user) {
-      console.log('Session created successfully for user:', data.user?.email);
+      console.log('✅ [Callback] Session created for user:', data.user?.email);
       
       // Sync user profile to database
       try {
@@ -68,39 +67,21 @@ export async function GET(request: Request) {
           email: data.user.email || null,
         };
 
-        // Use server-side upsert
         await supabase.from('users').upsert(profileData);
-        console.log('✅ User profile synced');
+        console.log('✅ [Callback] User profile synced');
       } catch (error) {
-        console.error('Failed to sync user profile:', error);
-        // Continue anyway - profile can be synced later
+        console.error('❌ [Callback] Failed to sync user profile:', error);
       }
       
-      // Force session refresh and redirect to main page
-      const response = NextResponse.redirect(new URL('/', requestUrl.origin));
-      
-      // Ensure cookies are properly set
-      const cookieOptions: CookieOptions = {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 7, // 7 days
-      };
-      
-      // Set auth cookies manually if needed
-      if (data.session.access_token) {
-        response.cookies.set('sb-access-token', data.session.access_token, cookieOptions);
-      }
-      if (data.session.refresh_token) {
-        response.cookies.set('sb-refresh-token', data.session.refresh_token, cookieOptions);
-      }
-      
+      console.log('✅ [Callback] Redirecting to home page...');
       return response;
+    } else {
+      console.error('❌ [Callback] No session or user data received');
     }
   }
 
   // No code present - redirect to login
-  console.log('No code present in callback');
+  console.log('⚠️ [Callback] No code present, redirecting to login');
   return NextResponse.redirect(new URL('/login', requestUrl.origin));
 }
 
