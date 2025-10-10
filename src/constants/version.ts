@@ -7,9 +7,19 @@
  * - PATCH: 버그 수정 및 작은 개선
  */
 
-export const APP_VERSION = '1.3.2';
+export const APP_VERSION = '1.3.3';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.3.3',
+    date: '2025-10-10',
+    changes: [
+      '메인 페이지 전체 기능 복원 (Hero, Features, Tracks, CTA 섹션)',
+      '로그인 페이지 완전 복원 (데모 계정, 이용약관, Supabase 설정 경고)',
+      'OAuth 콜백 처리 안정화 및 디버깅 로그 정리',
+      '로그인 후 자동으로 /certify 페이지로 리다이렉트 유지',
+    ],
+  },
   {
     version: '1.3.2',
     date: '2025-10-10',

@@ -8,13 +8,9 @@ export async function GET(request: Request) {
   const error = requestUrl.searchParams.get('error');
   const errorDescription = requestUrl.searchParams.get('error_description');
 
-  console.log('🔍 [Callback] Starting OAuth callback processing...');
-  console.log('🔍 [Callback] Code:', code ? 'present' : 'missing');
-  console.log('🔍 [Callback] Error:', error);
 
   // Handle OAuth errors
   if (error) {
-    console.error('❌ [Callback] OAuth error:', error, errorDescription);
     return NextResponse.redirect(
       new URL(`/login?error=${encodeURIComponent(errorDescription || error)}`, requestUrl.origin)
     );
@@ -41,18 +37,15 @@ export async function GET(request: Request) {
       }
     );
     
-    console.log('🔍 [Callback] Exchanging code for session...');
     const { data, error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
     
     if (sessionError) {
-      console.error('❌ [Callback] Session exchange error:', sessionError);
       return NextResponse.redirect(
         new URL(`/login?error=${encodeURIComponent(sessionError.message)}`, requestUrl.origin)
       );
     }
 
     if (data.session && data.user) {
-      console.log('✅ [Callback] Session created for user:', data.user?.email);
       
       // Sync user profile to database
       try {
@@ -68,20 +61,16 @@ export async function GET(request: Request) {
         };
 
         await supabase.from('users').upsert(profileData);
-        console.log('✅ [Callback] User profile synced');
       } catch (error) {
-        console.error('❌ [Callback] Failed to sync user profile:', error);
+        console.error('Failed to sync user profile:', error);
       }
       
-      console.log('✅ [Callback] Redirecting to home page...');
       return response;
     } else {
-      console.error('❌ [Callback] No session or user data received');
     }
   }
 
   // No code present - redirect to login
-  console.log('⚠️ [Callback] No code present, redirecting to login');
   return NextResponse.redirect(new URL('/login', requestUrl.origin));
 }
 
