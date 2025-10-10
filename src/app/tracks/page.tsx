@@ -37,6 +37,7 @@ export default function TracksPage() {
     try {
       const result = await enrollUserInTrack(userId, trackId);
       if (result) {
+        // Successfully enrolled, redirect to certification page
         router.push(`/certify/${trackType}`);
       } else {
         alert('트랙 등록에 실패했습니다. 다시 시도해주세요.');
@@ -55,7 +56,7 @@ export default function TracksPage() {
         <Navbar />
         <main className="min-h-screen py-12 px-4 flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <span className="ml-3 text-body text-gray-700">트랙 정보를 불러오는 중...</span>
+          <span className="ml-3 text-lg text-gray-700">트랙 정보를 불러오는 중...</span>
         </main>
         <Footer />
       </>
@@ -72,11 +73,11 @@ export default function TracksPage() {
         <Navbar />
         <main className="min-h-screen py-12 px-4 flex items-center justify-center">
           <Card className="p-8 text-center">
-            <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-            <h2 className="text-h4 font-heading text-gray-900 mb-2">
+            <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">
               트랙 정보를 불러올 수 없습니다
             </h2>
-            <p className="text-body text-gray-600 mb-6">
+            <p className="text-lg text-gray-600 mb-6">
               잠시 후 다시 시도해주세요.
             </p>
             <Button onClick={() => window.location.reload()}>새로고침</Button>
@@ -94,10 +95,10 @@ export default function TracksPage() {
         <div className="container mx-auto max-w-6xl">
           {/* Header */}
           <div className="mb-12 text-center">
-            <h1 className="text-h2 font-heading text-gray-900 mb-4">
+            <h1 className="text-3xl font-bold text-gray-900 mb-4">
               나에게 맞는 트랙을 선택하세요
             </h1>
-            <p className="text-body-lg text-gray-600 max-w-2xl mx-auto">
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
               각 트랙은 고유한 목표와 일정을 가지고 있습니다.
               <br />
               여러 트랙에 동시에 참여할 수 있습니다.
@@ -127,16 +128,16 @@ export default function TracksPage() {
                   </div>
 
                   {/* Title & Description */}
-                  <h2 className="text-h4 font-heading text-gray-900 mb-2">
+                  <h2 className="text-xl font-semibold text-gray-900 mb-2">
                     {track.name}
                   </h2>
-                  <p className="text-body text-gray-600 mb-4">
+                  <p className="text-lg text-gray-600 mb-4">
                     {track.description}
                   </p>
 
                   {/* Schedule */}
                   <div className="flex items-center gap-2 mb-6">
-                    <span className="text-body-sm text-gray-500">일정:</span>
+                    <span className="text-sm text-gray-500">일정:</span>
                     <Badge className="bg-secondary/10 text-secondary">
                       {schedule}
                     </Badge>
@@ -168,10 +169,10 @@ export default function TracksPage() {
 
           {/* Info Section */}
           <Card className="p-8 bg-gradient-to-br from-primary/5 to-secondary/5 border-primary/20">
-            <h3 className="text-h4 font-heading text-gray-900 mb-4">
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">
               💡 트랙 선택 가이드
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-body-sm text-gray-700">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-700">
               <div>
                 <strong className="text-gray-900">Short-form:</strong> 매일
                 꾸준히 짧은 콘텐츠를 만들고 싶은 분

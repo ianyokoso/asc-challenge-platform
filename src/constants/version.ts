@@ -7,9 +7,19 @@
  * - PATCH: 버그 수정 및 작은 개선
  */
 
-export const APP_VERSION = '1.3.3';
+export const APP_VERSION = '1.3.4';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.3.4',
+    date: '2025-10-10',
+    changes: [
+      '트랙 페이지 클라이언트 사이드 예외 오류 수정',
+      'CSS 클래스 표준 Tailwind CSS로 변경',
+      'TrackAccessDenied 컴포넌트 스타일 개선',
+      '트랙 등록 플로우 안정화',
+    ],
+  },
   {
     version: '1.3.3',
     date: '2025-10-10',
