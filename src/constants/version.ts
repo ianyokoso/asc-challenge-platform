@@ -7,9 +7,19 @@
  * - PATCH: 버그 수정 및 작은 개선
  */
 
-export const APP_VERSION = '1.4.0';
+export const APP_VERSION = '1.4.1';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.4.1',
+    date: '2025-01-10',
+    changes: [
+      '관리자 페이지 트랙 제외 기능 오류 수정',
+      'assignUserToTracks 함수 빈 배열 처리 개선',
+      '트랙 배정 실패 시 디버깅 로그 추가',
+      '토스트 메시지 개선 (트랙 제거 시 적절한 메시지 표시)',
+    ],
+  },
   {
     version: '1.4.0',
     date: '2025-01-10',

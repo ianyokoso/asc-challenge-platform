@@ -20,19 +20,25 @@ export async function assignUserToTracks(
   const supabase = createClient();
   
   try {
+    console.log(`[assignUserToTracks] Starting assignment for user ${userId} with tracks:`, trackIds);
+    
     // 1. 기존 트랙 모두 삭제
+    console.log('[assignUserToTracks] Deleting existing tracks...');
     const { error: deleteError } = await supabase
       .from('user_tracks')
       .delete()
       .eq('user_id', userId);
 
     if (deleteError) {
-      console.error('Error deleting existing tracks:', deleteError);
+      console.error('[assignUserToTracks] Error deleting existing tracks:', deleteError);
       return false;
     }
 
-    // 2. 새로운 트랙 추가
+    console.log('[assignUserToTracks] Successfully deleted existing tracks');
+
+    // 2. 새로운 트랙 추가 (빈 배열이어도 정상 처리)
     if (trackIds.length > 0) {
+      console.log('[assignUserToTracks] Inserting new tracks...');
       const tracksToInsert = trackIds.map(trackId => ({
         user_id: userId,
         track_id: trackId,
@@ -45,14 +51,19 @@ export async function assignUserToTracks(
         .insert(tracksToInsert);
 
       if (insertError) {
-        console.error('Error inserting new tracks:', insertError);
+        console.error('[assignUserToTracks] Error inserting new tracks:', insertError);
         return false;
       }
+      
+      console.log('[assignUserToTracks] Successfully inserted new tracks');
+    } else {
+      console.log('[assignUserToTracks] No tracks to insert (user will have no tracks)');
     }
 
+    console.log(`[assignUserToTracks] Successfully assigned ${trackIds.length} tracks to user ${userId}`);
     return true;
   } catch (error) {
-    console.error('Error in assignUserToTracks:', error);
+    console.error('[assignUserToTracks] Unexpected error:', error);
     return false;
   }
 }

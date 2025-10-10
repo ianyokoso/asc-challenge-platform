@@ -140,18 +140,28 @@ export default function AdminUsersPage() {
   const handleSaveTrackAssignment = async (trackIds: string[]) => {
     if (!selectedUser) return;
     
+    console.log(`[handleSaveTrackAssignment] Assigning tracks to ${selectedUser.discord_username}:`, trackIds);
+    
     const success = await assignUserToTracks(selectedUser.id, trackIds);
     
     if (success) {
+      const trackCount = trackIds.length;
+      const message = trackCount > 0 
+        ? `${selectedUser.discord_username}에게 ${trackCount}개의 트랙이 배정되었습니다.`
+        : `${selectedUser.discord_username}의 모든 트랙이 제거되었습니다.`;
+        
       toast({
         title: '트랙 배정 완료',
-        description: `${selectedUser.discord_username}에게 ${trackIds.length}개의 트랙이 배정되었습니다.`,
+        description: message,
       });
       
       // Refresh users list
+      console.log('[handleSaveTrackAssignment] Refreshing users list...');
       const usersData = await getUsersWithTracks();
       setUsers(usersData);
+      console.log('[handleSaveTrackAssignment] Users list refreshed successfully');
     } else {
+      console.error('[handleSaveTrackAssignment] Track assignment failed');
       toast({
         title: '트랙 배정 실패',
         description: '트랙 배정 중 오류가 발생했습니다.',
