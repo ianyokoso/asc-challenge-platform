@@ -22,12 +22,6 @@ export async function assignUserToTracks(
   try {
     console.log(`[assignUserToTracks] Starting assignment for user ${userId} with tracks:`, trackIds);
     
-    // 빈 배열은 허용하지 않음
-    if (trackIds.length === 0) {
-      console.error('[assignUserToTracks] Error: Empty track IDs array');
-      return false;
-    }
-    
     // 1. 기존 트랙 모두 삭제
     console.log('[assignUserToTracks] Deleting existing tracks...');
     const { error: deleteError } = await supabase
@@ -42,25 +36,30 @@ export async function assignUserToTracks(
 
     console.log('[assignUserToTracks] Successfully deleted existing tracks');
 
-    // 2. 새로운 트랙 추가
-    console.log('[assignUserToTracks] Inserting new tracks...');
-    const tracksToInsert = trackIds.map(trackId => ({
-      user_id: userId,
-      track_id: trackId,
-      is_active: true,
-      dropout_warnings: 0,
-    }));
+    // 2. 새로운 트랙 추가 (빈 배열이면 트랙 추가 대기중 상태)
+    if (trackIds.length > 0) {
+      console.log('[assignUserToTracks] Inserting new tracks...');
+      const tracksToInsert = trackIds.map(trackId => ({
+        user_id: userId,
+        track_id: trackId,
+        is_active: true,
+        dropout_warnings: 0,
+      }));
 
-    const { error: insertError } = await supabase
-      .from('user_tracks')
-      .insert(tracksToInsert);
+      const { error: insertError } = await supabase
+        .from('user_tracks')
+        .insert(tracksToInsert);
 
-    if (insertError) {
-      console.error('[assignUserToTracks] Error inserting new tracks:', insertError);
-      return false;
+      if (insertError) {
+        console.error('[assignUserToTracks] Error inserting new tracks:', insertError);
+        return false;
+      }
+      
+      console.log('[assignUserToTracks] Successfully inserted new tracks');
+    } else {
+      console.log('[assignUserToTracks] No tracks selected - user will be in "waiting for track assignment" state');
     }
     
-    console.log('[assignUserToTracks] Successfully inserted new tracks');
     console.log(`[assignUserToTracks] Successfully assigned ${trackIds.length} tracks to user ${userId}`);
     return true;
   } catch (error) {

@@ -77,12 +77,14 @@ export function UsersTable({ users, onManageClick }: UsersTableProps) {
                       user.user_tracks
                         .filter((ut: any) => ut.is_active)
                         .map((ut: any) => (
-                          <Badge key={ut.id} className="bg-primary/10 text-primary text-body-xs">
+                          <Badge key={ut.id} className="bg-primary/10 text-primary text-xs">
                             {ut.track?.name || '트랙'}
                           </Badge>
                         ))
                     ) : (
-                      <span className="text-body-sm text-gray-500">미배정</span>
+                      <Badge className="bg-gray-100 text-gray-600 text-xs">
+                        트랙 추가 대기중
+                      </Badge>
                     )}
                   </div>
                 </td>

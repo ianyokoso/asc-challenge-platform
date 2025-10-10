@@ -7,9 +7,19 @@
  * - PATCH: 버그 수정 및 작은 개선
  */
 
-export const APP_VERSION = '1.4.2';
+export const APP_VERSION = '1.4.3';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.4.3',
+    date: '2025-01-10',
+    changes: [
+      '모든 트랙 제거 가능하도록 변경',
+      '트랙이 없는 사용자 "트랙 추가 대기중" 상태로 표시',
+      '트랙 배정 시스템 완전 유연화',
+      '사용자 관리 테이블 트랙 표시 개선',
+    ],
+  },
   {
     version: '1.4.2',
     date: '2025-01-10',
