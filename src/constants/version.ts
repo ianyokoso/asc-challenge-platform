@@ -7,9 +7,18 @@
  * - PATCH: 버그 수정 및 작은 개선
  */
 
-export const APP_VERSION = '1.3.1';
+export const APP_VERSION = '1.3.2';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.3.2',
+    date: '2025-10-10',
+    changes: [
+      '로그인 성공 후 인증 페이지로 자동 리다이렉트',
+      '인증 페이지 이동 버튼 추가',
+      '로그인 플로우 개선',
+    ],
+  },
   {
     version: '1.3.1',
     date: '2025-10-10',

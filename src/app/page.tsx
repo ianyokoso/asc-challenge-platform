@@ -57,7 +57,12 @@ export default function Home() {
                 <p className="text-lg text-gray-600">
                   환영합니다, {user.email}
                 </p>
-                <div className="pt-4">
+                <div className="pt-4 flex gap-4 justify-center">
+                  <Link href="/certify">
+                    <Button className="bg-primary hover:bg-primary-hover text-primary-foreground font-semibold text-xl px-12 py-8 rounded-xl">
+                      인증 페이지로 이동
+                    </Button>
+                  </Link>
                   <Button
                     onClick={handleSignOut}
                     className="bg-red-500 hover:bg-red-600 text-white font-semibold text-xl px-12 py-8 rounded-xl"
