@@ -7,9 +7,19 @@
  * - PATCH: 버그 수정 및 작은 개선
  */
 
-export const APP_VERSION = '1.2.5';
+export const APP_VERSION = '1.2.6';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.2.6',
+    date: '2025-10-10',
+    changes: [
+      '로그인 세션 관리 문제 긴급 수정',
+      'OAuth 콜백 후 쿠키 설정 개선',
+      '세션 갱신 로직 강화',
+      '미들웨어 세션 처리 개선',
+    ],
+  },
   {
     version: '1.2.5',
     date: '2025-10-10',

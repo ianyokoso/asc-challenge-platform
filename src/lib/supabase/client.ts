@@ -39,6 +39,20 @@ export const signOut = async () => {
 export const getUser = async () => {
   try {
     const supabase = createClient();
+    
+    // First try to get session to refresh if needed
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    
+    // If no session, try to refresh
+    if (!session && !sessionError) {
+      const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError) {
+        console.log('No active session and refresh failed:', refreshError.message);
+        return null;
+      }
+    }
+    
+    // Now get user
     const { data: { user }, error } = await supabase.auth.getUser();
     
     if (error) {
