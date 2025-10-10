@@ -239,25 +239,45 @@ export async function submitCertification(data: {
 }): Promise<Certification | null> {
   const supabase = createClient();
   
-  const { data: certification, error } = await supabase
-    .from('certifications')
-    .upsert({
-      user_id: data.user_id,
-      track_id: data.track_id,
-      user_track_id: data.user_track_id,
-      certification_url: data.certification_url,
-      certification_date: data.certification_date,
-      status: 'submitted',
-    })
-    .select()
-    .single();
+  console.log('[submitCertification] 🚀 Starting certification submission:', {
+    user_id: data.user_id,
+    track_id: data.track_id,
+    user_track_id: data.user_track_id,
+    certification_date: data.certification_date,
+    url_length: data.certification_url.length,
+  });
+  
+  try {
+    const { data: certification, error } = await supabase
+      .from('certifications')
+      .upsert({
+        user_id: data.user_id,
+        track_id: data.track_id,
+        user_track_id: data.user_track_id,
+        certification_url: data.certification_url,
+        certification_date: data.certification_date,
+        status: 'submitted',
+      })
+      .select()
+      .single();
 
-  if (error) {
-    console.error('Error submitting certification:', error);
-    return null;
+    if (error) {
+      console.error('❌ [submitCertification] Error submitting certification:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+        fullError: error,
+      });
+      throw new Error(`인증 제출 실패: ${error.message || '알 수 없는 오류'}`);
+    }
+
+    console.log('✅ [submitCertification] Success:', certification?.id);
+    return certification;
+  } catch (err: any) {
+    console.error('❌ [submitCertification] Critical error:', err);
+    throw err;
   }
-
-  return certification;
 }
 
 export async function getCertifications(

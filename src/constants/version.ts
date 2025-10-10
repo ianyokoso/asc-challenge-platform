@@ -7,9 +7,19 @@
  * - PATCH: 버그 수정 및 작은 개선
  */
 
-export const APP_VERSION = '1.3.4';
+export const APP_VERSION = '1.3.5';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.3.5',
+    date: '2025-01-10',
+    changes: [
+      '트랙 페이지 무한 로딩 문제 해결',
+      'useUserAccess 훅 타임아웃 개선 (5초)',
+      '인증 제출 로직 디버깅 로그 추가',
+      'submitCertification 함수 오류 처리 개선',
+    ],
+  },
   {
     version: '1.3.4',
     date: '2025-10-10',

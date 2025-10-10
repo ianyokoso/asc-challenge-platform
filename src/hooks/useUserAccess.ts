@@ -21,21 +21,24 @@ export function useUserAccess(): UserAccessResult {
 
   useEffect(() => {
     let mounted = true;
-    let timeoutId: NodeJS.Timeout;
+    let globalTimeout: NodeJS.Timeout;
     
     const checkUserAccess = async () => {
+      console.log('[useUserAccess] 🚀 Starting user access check...');
       setIsLoading(true);
       
-      // 전체 프로세스 타임아웃 (10초)
-      const globalTimeout = setTimeout(() => {
+      // 전체 프로세스 타임아웃 (5초로 단축)
+      globalTimeout = setTimeout(() => {
         if (mounted) {
           console.warn('[useUserAccess] ⚠️ 전역 타임아웃 - 강제 종료');
           setHasAssignedTracks(false);
           setIsLoading(false);
         }
-      }, 10000);
+      }, 5000);
       
       try {
+        // 사용자 정보 가져오기
+        console.log('[useUserAccess] 📡 Fetching user...');
         const user = await getUser();
         
         if (!mounted) {
@@ -50,6 +53,7 @@ export function useUserAccess(): UserAccessResult {
         
         if (currentUserId) {
           try {
+            console.log('[useUserAccess] 📡 Fetching user tracks...');
             const userTracks = await getUserTracks(currentUserId);
             
             if (!mounted) {
@@ -67,7 +71,7 @@ export function useUserAccess(): UserAccessResult {
               return;
             }
             
-            // RLS 오류 등이 발생해도 계속 진행
+            // RLS 오류 등이 발생해도 계속 진행 - 빈 배열로 처리
             setHasAssignedTracks(false);
           }
         } else {
@@ -85,9 +89,8 @@ export function useUserAccess(): UserAccessResult {
         setUserId(null);
         setHasAssignedTracks(false);
       } finally {
-        clearTimeout(globalTimeout);
-        
         if (mounted) {
+          clearTimeout(globalTimeout);
           console.log('[useUserAccess] ✅ Loading complete');
           setIsLoading(false);
         }
@@ -98,8 +101,8 @@ export function useUserAccess(): UserAccessResult {
     
     return () => {
       mounted = false;
-      if (timeoutId) {
-        clearTimeout(timeoutId);
+      if (globalTimeout) {
+        clearTimeout(globalTimeout);
       }
     };
   }, []);

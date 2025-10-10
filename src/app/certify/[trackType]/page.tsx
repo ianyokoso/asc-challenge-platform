@@ -141,6 +141,7 @@ export default function TrackCertifyPage() {
         return;
       }
 
+      console.log('[CertifyPage] 🚀 Submitting certification...');
       const result = await submitCertification({
         user_id: userId,
         track_id: currentTrack.track_id,
@@ -150,15 +151,18 @@ export default function TrackCertifyPage() {
       });
 
       if (result) {
+        console.log('[CertifyPage] ✅ Certification submitted successfully:', result.id);
         // Success! Navigate to success page
         router.push('/certify/success');
       } else {
+        console.error('[CertifyPage] ❌ Certification submission returned null');
         setError('인증 제출에 실패했습니다. 다시 시도해주세요.');
       }
     } catch (err: any) {
-      console.error('Certification submission error:', err);
+      console.error('[CertifyPage] ❌ Certification submission error:', err);
       setError(err.message || '인증 제출 중 오류가 발생했습니다.');
     } finally {
+      console.log('[CertifyPage] 🔄 Setting isSubmitting to false');
       setIsSubmitting(false);
     }
   };
