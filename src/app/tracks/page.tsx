@@ -35,11 +35,26 @@ export default function TracksPage() {
   const { data: tracks, isLoading, error } = useTracksWithParticipants();
   const [userId, setUserId] = useState<string | null>(null);
   const [enrolling, setEnrolling] = useState<string | null>(null);
+  const [hasAssignedTracks, setHasAssignedTracks] = useState(false);
+  const [checkingAccess, setCheckingAccess] = useState(true);
 
   useEffect(() => {
     const fetchUser = async () => {
       const user = await getUser();
       setUserId(user?.id || null);
+      
+      // 로그인한 사용자의 경우 트랙 배정 여부 확인
+      if (user?.id) {
+        try {
+          const { getUserTracks } = await import('@/lib/supabase/database');
+          const userTracks = await getUserTracks(user.id);
+          setHasAssignedTracks(userTracks.length > 0);
+        } catch (err) {
+          console.error('Error checking user tracks:', err);
+          setHasAssignedTracks(false);
+        }
+      }
+      setCheckingAccess(false);
     };
     fetchUser();
   }, []);
@@ -47,6 +62,11 @@ export default function TracksPage() {
   const handleEnroll = async (trackId: string, trackType: TrackType) => {
     if (!userId) {
       router.push('/login');
+      return;
+    }
+
+    // 트랙 배정이 안된 사용자는 트랙 선택 불가
+    if (!hasAssignedTracks) {
       return;
     }
 
@@ -67,13 +87,44 @@ export default function TracksPage() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || checkingAccess) {
     return (
       <>
         <Navbar />
         <main className="min-h-screen py-12 px-4 flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <span className="ml-3 text-body text-gray-700">트랙 정보를 불러오는 중...</span>
+        </main>
+        <Footer />
+      </>
+    );
+  }
+
+  // 트랙 배정이 안된 사용자는 접근 차단
+  if (userId && !hasAssignedTracks) {
+    return (
+      <>
+        <Navbar />
+        <main className="min-h-screen py-12 px-4 flex items-center justify-center">
+          <Card className="p-8 max-w-lg text-center">
+            <AlertCircle className="h-16 w-16 text-accent mx-auto mb-4" />
+            <h2 className="text-h3 font-heading text-gray-900 mb-3">
+              트랙 배정 대기 중
+            </h2>
+            <p className="text-body text-gray-600 mb-6">
+              아직 관리자가 트랙을 배정하지 않았습니다.
+              <br />
+              관리자에게 문의하여 트랙을 배정받으세요.
+            </p>
+            <div className="bg-accent/10 border border-accent/30 rounded-lg p-4 mb-6">
+              <p className="text-body-sm text-gray-700">
+                💡 <strong>안내:</strong> 챌린지에 참여하려면 관리자가 먼저 트랙을 배정해야 합니다.
+                <br />
+                Discord 채널에서 관리자에게 문의해주세요.
+              </p>
+            </div>
+            <Button onClick={() => router.push('/')}>홈으로 돌아가기</Button>
+          </Card>
         </main>
         <Footer />
       </>
@@ -159,8 +210,9 @@ export default function TracksPage() {
                   {/* CTA Button */}
                   <Button
                     onClick={() => handleEnroll(track.id, track.type)}
-                    disabled={isEnrolling}
+                    disabled={isEnrolling || !hasAssignedTracks}
                     className="w-full bg-primary hover:bg-primary-hover text-primary-foreground font-semibold"
+                    title={!hasAssignedTracks ? '관리자가 트랙을 배정해야 합니다' : ''}
                   >
                     {isEnrolling ? (
                       <>

@@ -6,6 +6,15 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { AdminSidebar } from '@/components/layout/admin-sidebar';
 import {
   Search,
@@ -14,17 +23,30 @@ import {
   ShieldAlert,
   Download,
   UserPlus,
+  Settings,
 } from 'lucide-react';
 import { getUser } from '@/lib/supabase/client';
 import { useIsAdmin, useAllUsersWithStats } from '@/hooks/useAdmin';
 import { useRouter } from 'next/navigation';
+import { getAllTracks, assignUserToTracks, getUsersWithTracks } from '@/lib/supabase/database';
+import { useToast } from '@/hooks/use-toast';
 
 export default function AdminUsersPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const [userId, setUserId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterTrack, setFilterTrack] = useState<string>('all');
   const [copied, setCopied] = useState(false);
+  
+  // Track assignment dialog state
+  const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [selectedTrackIds, setSelectedTrackIds] = useState<string[]>([]);
+  const [allTracks, setAllTracks] = useState<any[]>([]);
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [users, setUsers] = useState<any[]>([]);
+  const [usersLoading, setUsersLoading] = useState(true);
 
   // Get current user
   useEffect(() => {
@@ -38,8 +60,21 @@ export default function AdminUsersPage() {
   // Check if user is admin
   const { data: isAdmin, isLoading: adminLoading } = useIsAdmin(userId || undefined);
   
-  // Fetch all users with stats
-  const { data: users, isLoading: usersLoading } = useAllUsersWithStats();
+  // Fetch all users with tracks
+  useEffect(() => {
+    const fetchData = async () => {
+      setUsersLoading(true);
+      const usersData = await getUsersWithTracks();
+      const tracksData = await getAllTracks();
+      setUsers(usersData);
+      setAllTracks(tracksData);
+      setUsersLoading(false);
+    };
+    
+    if (isAdmin) {
+      fetchData();
+    }
+  }, [isAdmin]);
 
   const isLoading = adminLoading || usersLoading;
 
@@ -102,6 +137,67 @@ export default function AdminUsersPage() {
     link.href = URL.createObjectURL(blob);
     link.download = `users_${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
+  };
+
+  // Open track assignment dialog
+  const handleOpenAssignDialog = (user: any) => {
+    setSelectedUser(user);
+    
+    // Get current active track IDs
+    const currentTrackIds = user.user_tracks
+      ?.filter((ut: any) => ut.is_active)
+      .map((ut: any) => ut.track_id) || [];
+    
+    setSelectedTrackIds(currentTrackIds);
+    setIsAssignDialogOpen(true);
+  };
+
+  // Toggle track selection
+  const handleTrackToggle = (trackId: string) => {
+    setSelectedTrackIds(prev => {
+      if (prev.includes(trackId)) {
+        return prev.filter(id => id !== trackId);
+      } else {
+        return [...prev, trackId];
+      }
+    });
+  };
+
+  // Save track assignment
+  const handleSaveTrackAssignment = async () => {
+    if (!selectedUser) return;
+    
+    setIsAssigning(true);
+    try {
+      const success = await assignUserToTracks(selectedUser.id, selectedTrackIds);
+      
+      if (success) {
+        toast({
+          title: '트랙 배정 완료',
+          description: `${selectedUser.discord_username}에게 ${selectedTrackIds.length}개의 트랙이 배정되었습니다.`,
+        });
+        
+        // Refresh users list
+        const usersData = await getUsersWithTracks();
+        setUsers(usersData);
+        setIsAssignDialogOpen(false);
+      } else {
+        toast({
+          title: '트랙 배정 실패',
+          description: '트랙 배정 중 오류가 발생했습니다.',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Error assigning tracks:', error);
+      toast({
+        title: '트랙 배정 실패',
+        description: '트랙 배정 중 오류가 발생했습니다.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsAssigning(false);
+    }
   };
 
   // Not logged in or not admin
@@ -295,13 +391,19 @@ export default function AdminUsersPage() {
                           </div>
                         </td>
                         <td className="py-4 px-4">
-                          {userTrack ? (
-                            <Badge className="bg-primary/10 text-primary">
-                              {userTrack.track?.name || '트랙'}
-                            </Badge>
-                          ) : (
-                            <span className="text-body-sm text-gray-500">미등록</span>
-                          )}
+                          <div className="flex flex-wrap gap-1">
+                            {user.user_tracks && user.user_tracks.length > 0 ? (
+                              user.user_tracks
+                                .filter((ut: any) => ut.is_active)
+                                .map((ut: any) => (
+                                  <Badge key={ut.id} className="bg-primary/10 text-primary text-body-xs">
+                                    {ut.track?.name || '트랙'}
+                                  </Badge>
+                                ))
+                            ) : (
+                              <span className="text-body-sm text-gray-500">미배정</span>
+                            )}
+                          </div>
                         </td>
                         <td className="py-4 px-4 text-center">
                           {userTrack && userTrack.dropout_warnings > 0 ? (
@@ -327,8 +429,9 @@ export default function AdminUsersPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            disabled
+                            onClick={() => handleOpenAssignDialog(user)}
                           >
+                            <Settings className="h-4 w-4 mr-1" />
                             관리
                           </Button>
                         </td>
@@ -347,6 +450,71 @@ export default function AdminUsersPage() {
             )}
           </div>
         </Card>
+
+        {/* Track Assignment Dialog */}
+        <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>트랙 배정 관리</DialogTitle>
+              <DialogDescription>
+                {selectedUser?.discord_username}에게 배정할 트랙을 선택하세요
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="py-4 space-y-4">
+              {allTracks.map(track => {
+                const isSelected = selectedTrackIds.includes(track.id);
+                
+                return (
+                  <div
+                    key={track.id}
+                    className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
+                    onClick={() => handleTrackToggle(track.id)}
+                  >
+                    <Checkbox
+                      id={track.id}
+                      checked={isSelected}
+                      onCheckedChange={() => handleTrackToggle(track.id)}
+                    />
+                    <label
+                      htmlFor={track.id}
+                      className="flex-1 cursor-pointer"
+                    >
+                      <div className="font-medium text-gray-900">{track.name}</div>
+                      <div className="text-body-sm text-gray-600">{track.description}</div>
+                    </label>
+                    {isSelected && (
+                      <Badge className="bg-primary/10 text-primary">선택됨</Badge>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsAssignDialogOpen(false)}
+                disabled={isAssigning}
+              >
+                취소
+              </Button>
+              <Button
+                onClick={handleSaveTrackAssignment}
+                disabled={isAssigning}
+              >
+                {isAssigning ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    저장 중...
+                  </>
+                ) : (
+                  '저장'
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );

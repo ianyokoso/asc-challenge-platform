@@ -12,8 +12,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Home, Calendar, Trophy, User, LogOut } from 'lucide-react';
+import { Home, Calendar, Trophy, User, LogOut, Shield } from 'lucide-react';
 import { createClient, signOut, getUser } from '@/lib/supabase/client';
+import { isUserAdmin } from '@/lib/supabase/database';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 const navigation = [
@@ -30,15 +31,23 @@ export function Navbar() {
   const isLoginPage = pathname === '/login';
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     const fetchUser = async () => {
       try {
         const currentUser = await getUser();
         setUser(currentUser);
+        
+        // Check admin status
+        if (currentUser?.id) {
+          const adminStatus = await isUserAdmin(currentUser.id);
+          setIsAdmin(adminStatus);
+        }
       } catch (error) {
         console.error('Error fetching user:', error);
         setUser(null);
+        setIsAdmin(false);
       } finally {
         setIsLoading(false);
       }
@@ -50,8 +59,16 @@ export function Navbar() {
     const supabase = createClient();
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setUser(session?.user ?? null);
+      
+      // Check admin status on auth change
+      if (session?.user?.id) {
+        const adminStatus = await isUserAdmin(session.user.id);
+        setIsAdmin(adminStatus);
+      } else {
+        setIsAdmin(false);
+      }
     });
 
     return () => {
@@ -162,12 +179,16 @@ export function Navbar() {
                     내 프로필
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/admin" className="cursor-pointer">
-                    <User className="h-4 w-4 mr-2" />
-                    관리자 페이지
-                  </Link>
-                </DropdownMenuItem>
+                {isAdmin && (
+                  <>
+                    <DropdownMenuItem asChild>
+                      <Link href="/admin" className="cursor-pointer">
+                        <Shield className="h-4 w-4 mr-2" />
+                        관리자 페이지
+                      </Link>
+                    </DropdownMenuItem>
+                  </>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="cursor-pointer text-destructive"

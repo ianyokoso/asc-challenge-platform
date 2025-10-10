@@ -644,4 +644,74 @@ export async function getLastCertificationDate(
   return new Date(data.certification_date);
 }
 
+// ============================================
+// ADMIN USER-TRACK MANAGEMENT
+// ============================================
+
+export async function assignUserToTracks(
+  userId: string,
+  trackIds: string[]
+): Promise<boolean> {
+  const supabase = createClient();
+  
+  try {
+    // 1. 모든 트랙 비활성화
+    await supabase
+      .from('user_tracks')
+      .update({ is_active: false })
+      .eq('user_id', userId);
+
+    // 2. 선택된 트랙들 활성화 또는 생성
+    if (trackIds.length > 0) {
+      const tracksToUpsert = trackIds.map(trackId => ({
+        user_id: userId,
+        track_id: trackId,
+        is_active: true,
+        dropout_warnings: 0,
+      }));
+
+      const { error } = await supabase
+        .from('user_tracks')
+        .upsert(tracksToUpsert, {
+          onConflict: 'user_id,track_id',
+        });
+
+      if (error) {
+        console.error('Error assigning user to tracks:', error);
+        return false;
+      }
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error in assignUserToTracks:', error);
+    return false;
+  }
+}
+
+export async function getUsersWithTracks(): Promise<any[]> {
+  const supabase = createClient();
+  
+  const { data, error } = await supabase
+    .from('users')
+    .select(`
+      *,
+      user_tracks(
+        id,
+        track_id,
+        is_active,
+        track:tracks(*)
+      )
+    `)
+    .eq('is_active', true)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching users with tracks:', error);
+    return [];
+  }
+
+  return data || [];
+}
+
 
