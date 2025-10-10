@@ -158,6 +158,14 @@ export default function AdminUsersPage() {
       console.log('[handleSaveTrackAssignment] Refreshing users list...');
       const usersData = await getUsersWithTracks();
       setUsers(usersData);
+      
+      // Update selected user with fresh data
+      const updatedUser = usersData.find(u => u.id === selectedUser.id);
+      if (updatedUser) {
+        console.log('[handleSaveTrackAssignment] Updating selected user with fresh data:', updatedUser);
+        setSelectedUser(updatedUser);
+      }
+      
       console.log('[handleSaveTrackAssignment] Users list refreshed successfully');
     } else {
       console.error('[handleSaveTrackAssignment] Track assignment failed');

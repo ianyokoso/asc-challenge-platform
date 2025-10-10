@@ -7,9 +7,19 @@
  * - PATCH: 버그 수정 및 작은 개선
  */
 
-export const APP_VERSION = '1.4.3';
+export const APP_VERSION = '1.4.4';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.4.4',
+    date: '2025-01-10',
+    changes: [
+      '트랙 배정 다이얼로그 실시간 업데이트 수정',
+      '트랙 제거 후 다이얼로그 상태 즉시 반영',
+      '사용자 트랙 정보 깊이 있는 비교로 업데이트 감지',
+      '다이얼로그 닫힐 때 상태 초기화 추가',
+    ],
+  },
   {
     version: '1.4.3',
     date: '2025-01-10',

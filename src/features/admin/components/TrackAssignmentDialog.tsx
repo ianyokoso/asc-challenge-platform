@@ -36,15 +36,21 @@ export function TrackAssignmentDialog({
   // 다이얼로그가 열릴 때마다 사용자의 기존 트랙을 초기화
   useEffect(() => {
     if (isOpen && user) {
-      console.log('[TrackAssignmentDialog] 🔄 Initializing with user tracks:', user);
+      console.log('[TrackAssignmentDialog] 🔄 Initializing with user:', user);
+      console.log('[TrackAssignmentDialog] 📋 User tracks:', user.user_tracks);
+      
       const existingTrackIds = user?.user_tracks
         ?.filter((ut: any) => ut.is_active)
         .map((ut: any) => ut.track_id) || [];
       
       console.log('[TrackAssignmentDialog] ✅ Existing track IDs:', existingTrackIds);
       setSelectedTrackIds(existingTrackIds);
+    } else if (!isOpen) {
+      // 다이얼로그가 닫힐 때 상태 초기화
+      console.log('[TrackAssignmentDialog] 🔄 Dialog closed, resetting state');
+      setSelectedTrackIds([]);
     }
-  }, [isOpen, user]);
+  }, [isOpen, user?.id, JSON.stringify(user?.user_tracks)]);
 
   const handleTrackToggle = (trackId: string) => {
     setSelectedTrackIds(prev => {
