@@ -35,7 +35,9 @@ export default function CertifyIndexPage() {
   // Get current user
   useEffect(() => {
     const fetchUser = async () => {
+      console.log('🔍 [CertifyPage] Fetching user...');
       const user = await getUser();
+      console.log('🔍 [CertifyPage] User result:', user ? `found (${user.email})` : 'not found');
       setUserId(user?.id || null);
     };
     fetchUser();
