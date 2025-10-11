@@ -7,9 +7,19 @@
  * - PATCH: 버그 수정 및 작은 개선
  */
 
-export const APP_VERSION = '1.5.2';
+export const APP_VERSION = '1.5.3';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.5.3',
+    date: '2025-01-10',
+    changes: [
+      'RLS 정책 수정: 관리자 트랙 삭제 권한 추가',
+      'user_tracks 테이블 DELETE 정책 추가',
+      'user_tracks 테이블 UPDATE 정책 추가',
+      '관리자 트랙 관리 기능 완전 활성화',
+    ],
+  },
   {
     version: '1.5.2',
     date: '2025-01-10',
