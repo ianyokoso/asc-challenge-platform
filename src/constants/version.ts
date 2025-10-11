@@ -7,9 +7,19 @@
  * - PATCH: 버그 수정 및 작은 개선
  */
 
-export const APP_VERSION = '1.5.1';
+export const APP_VERSION = '1.5.2';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.5.2',
+    date: '2025-01-10',
+    changes: [
+      '트랙 삭제 쿼리 수정 (count 사용)',
+      'user_id 중복 조건 제거',
+      '삭제된 트랙 수 정확히 로깅',
+      'RLS 정책 호환성 개선',
+    ],
+  },
   {
     version: '1.5.1',
     date: '2025-01-10',

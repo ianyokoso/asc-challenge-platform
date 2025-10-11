@@ -78,19 +78,19 @@ export async function assignUserToTracks(
       }
 
       console.log('[assignUserToTracks] 🗑️ Deleting removed tracks...');
-      const { data: deletedData, error: deleteError } = await supabase
+      console.log('[assignUserToTracks] 🗑️ Deleting user_track IDs:', userTrackIdsToRemove);
+      
+      const { error: deleteError, count } = await supabase
         .from('user_tracks')
-        .delete()
-        .eq('user_id', userId)
-        .in('id', userTrackIdsToRemove)
-        .select();
+        .delete({ count: 'exact' })
+        .in('id', userTrackIdsToRemove);
 
       if (deleteError) {
         console.error('[assignUserToTracks] ❌ Error deleting tracks:', deleteError);
         throw new Error(`트랙 삭제 실패: ${deleteError.message}`);
       }
 
-      console.log('[assignUserToTracks] ✅ Successfully deleted tracks:', deletedData);
+      console.log('[assignUserToTracks] ✅ Successfully deleted', count, 'tracks');
     }
 
     // 4. 새로운 트랙 추가
