@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Home, Calendar, Trophy, User, LogOut, Shield } from 'lucide-react';
 import { createClient, signOut, getUser } from '@/lib/supabase/client';
-import { isUserAdmin } from '@/lib/supabase/database';
+import { isUserAdmin } from '@/lib/supabase/admin';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 const navigation = [
@@ -38,7 +38,7 @@ export function Navbar() {
         const currentUser = await getUser();
         setUser(currentUser);
         
-        // Check admin status
+        // Check admin status only once on mount
         if (currentUser?.id) {
           const adminStatus = await isUserAdmin(currentUser.id);
           setIsAdmin(adminStatus);
@@ -54,18 +54,20 @@ export function Navbar() {
 
     fetchUser();
 
-    // Listen to auth state changes
+    // Listen to auth state changes (login/logout only)
     const supabase = createClient();
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setUser(session?.user ?? null);
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('[Navbar] Auth state changed:', event);
       
-      // Check admin status on auth change
-      if (session?.user?.id) {
+      // Only update user state and check admin on SIGNED_IN event
+      if (event === 'SIGNED_IN' && session?.user?.id) {
+        setUser(session.user);
         const adminStatus = await isUserAdmin(session.user.id);
         setIsAdmin(adminStatus);
-      } else {
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
         setIsAdmin(false);
       }
     });

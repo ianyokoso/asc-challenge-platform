@@ -7,9 +7,19 @@
  * - PATCH: 버그 수정 및 작은 개선
  */
 
-export const APP_VERSION = '1.5.7';
+export const APP_VERSION = '1.5.8';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.5.8',
+    date: '2025-01-10',
+    changes: [
+      'isUserAdmin 무한 호출 문제 해결',
+      'Navbar에서 올바른 admin import 경로 수정',
+      'Auth state change 이벤트 필터링 (SIGNED_IN, SIGNED_OUT만 처리)',
+      '불필요한 admin 체크 제거로 성능 개선',
+    ],
+  },
   {
     version: '1.5.7',
     date: '2025-01-10',
