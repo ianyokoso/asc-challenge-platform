@@ -22,24 +22,61 @@ export async function assignUserToTracks(
   try {
     console.log(`[assignUserToTracks] Starting assignment for user ${userId} with tracks:`, trackIds);
     
-    // 1. 기존 트랙 모두 삭제
-    console.log('[assignUserToTracks] Deleting existing tracks...');
-    const { error: deleteError } = await supabase
+    // 1. 먼저 기존 user_tracks를 조회
+    console.log('[assignUserToTracks] Fetching existing tracks...');
+    const { data: existingTracks, error: fetchError } = await supabase
       .from('user_tracks')
-      .delete()
+      .select('id, track_id')
       .eq('user_id', userId);
 
-    if (deleteError) {
-      console.error('[assignUserToTracks] Error deleting existing tracks:', deleteError);
-      return false;
+    if (fetchError) {
+      console.error('[assignUserToTracks] Error fetching existing tracks:', fetchError);
+      throw new Error(`기존 트랙 조회 실패: ${fetchError.message}`);
     }
 
-    console.log('[assignUserToTracks] Successfully deleted existing tracks');
+    console.log('[assignUserToTracks] Existing tracks:', existingTracks);
 
-    // 2. 새로운 트랙 추가 (빈 배열이면 트랙 추가 대기중 상태)
-    if (trackIds.length > 0) {
+    // 2. 제거할 트랙과 유지할 트랙을 구분
+    const existingTrackIds = existingTracks?.map(t => t.track_id) || [];
+    const tracksToRemove = existingTracks?.filter(t => !trackIds.includes(t.track_id)) || [];
+    const tracksToAdd = trackIds.filter(id => !existingTrackIds.includes(id));
+
+    console.log('[assignUserToTracks] Tracks to remove:', tracksToRemove.map(t => t.track_id));
+    console.log('[assignUserToTracks] Tracks to add:', tracksToAdd);
+
+    // 3. 제거할 트랙이 있으면 해당 user_track_id를 가진 인증 레코드의 user_track_id를 NULL로 설정
+    if (tracksToRemove.length > 0) {
+      const userTrackIdsToRemove = tracksToRemove.map(t => t.id);
+      
+      console.log('[assignUserToTracks] Updating certifications to NULL for removed tracks...');
+      const { error: certUpdateError } = await supabase
+        .from('certifications')
+        .update({ user_track_id: null })
+        .in('user_track_id', userTrackIdsToRemove);
+
+      if (certUpdateError) {
+        console.error('[assignUserToTracks] Error updating certifications:', certUpdateError);
+        throw new Error(`인증 레코드 업데이트 실패: ${certUpdateError.message}`);
+      }
+
+      console.log('[assignUserToTracks] Deleting removed tracks...');
+      const { error: deleteError } = await supabase
+        .from('user_tracks')
+        .delete()
+        .in('id', userTrackIdsToRemove);
+
+      if (deleteError) {
+        console.error('[assignUserToTracks] Error deleting tracks:', deleteError);
+        throw new Error(`트랙 삭제 실패: ${deleteError.message}`);
+      }
+
+      console.log('[assignUserToTracks] Successfully deleted removed tracks');
+    }
+
+    // 4. 새로운 트랙 추가
+    if (tracksToAdd.length > 0) {
       console.log('[assignUserToTracks] Inserting new tracks...');
-      const tracksToInsert = trackIds.map(trackId => ({
+      const tracksToInsert = tracksToAdd.map(trackId => ({
         user_id: userId,
         track_id: trackId,
         is_active: true,
@@ -52,19 +89,17 @@ export async function assignUserToTracks(
 
       if (insertError) {
         console.error('[assignUserToTracks] Error inserting new tracks:', insertError);
-        return false;
+        throw new Error(`트랙 추가 실패: ${insertError.message}`);
       }
       
       console.log('[assignUserToTracks] Successfully inserted new tracks');
-    } else {
-      console.log('[assignUserToTracks] No tracks selected - user will be in "waiting for track assignment" state');
     }
     
     console.log(`[assignUserToTracks] Successfully assigned ${trackIds.length} tracks to user ${userId}`);
     return true;
-  } catch (error) {
+  } catch (error: any) {
     console.error('[assignUserToTracks] Unexpected error:', error);
-    return false;
+    throw error; // 에러를 상위로 전파하여 토스트 메시지에 표시
   }
 }
 

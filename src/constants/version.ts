@@ -7,9 +7,20 @@
  * - PATCH: 버그 수정 및 작은 개선
  */
 
-export const APP_VERSION = '1.4.5';
+export const APP_VERSION = '1.5.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.5.0',
+    date: '2025-01-10',
+    changes: [
+      '트랙 제외 시 외래 키 제약 조건 오류 해결',
+      '인증 레코드 보존 (user_track_id를 NULL로 설정)',
+      '트랙 개별 제거 기능 안정화 (4개→3개→2개→1개→0개)',
+      '에러 메시지 개선 및 상세 로깅 추가',
+      '트랙 변경 시 멤버 인증 기록 유지',
+    ],
+  },
   {
     version: '1.4.5',
     date: '2025-01-10',
