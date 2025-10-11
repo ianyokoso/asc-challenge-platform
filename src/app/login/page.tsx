@@ -202,8 +202,8 @@ export default function LoginPage() {
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-600">
             처음이신가요?{' '}
-            <Link href="/tracks" className="text-blue-600 hover:underline">
-              트랙 둘러보기
+            <Link href="/contact-admin" className="text-blue-600 hover:underline">
+              트랙 배정 문의
             </Link>
           </p>
         </div>

@@ -25,10 +25,10 @@ export function Footer() {
             <ul className="space-y-2">
               <li>
                 <Link
-                  href="/tracks"
+                  href="/contact-admin"
                   className="text-body-sm text-gray-600 hover:text-primary transition-colors"
                 >
-                  트랙 선택
+                  트랙 배정 문의
                 </Link>
               </li>
               <li>

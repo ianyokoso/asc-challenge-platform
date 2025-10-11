@@ -31,13 +31,29 @@ const trackSchedules: Record<TrackType, string> = {
 export default function CertifyIndexPage() {
   const router = useRouter();
   const [userId, setUserId] = useState<string | null>(null);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
-  // Get current user
+  // Get current user with retry logic for fresh logins
   useEffect(() => {
+    let retryCount = 0;
+    const maxRetries = 3;
+    const retryDelay = 500; // 500ms delay between retries
+
     const fetchUser = async () => {
       const user = await getUser();
+      
+      if (!user && retryCount < maxRetries) {
+        // Retry if user is not found (might be fresh login)
+        retryCount++;
+        console.log(`[CertifyPage] Retrying user fetch (${retryCount}/${maxRetries})...`);
+        setTimeout(fetchUser, retryDelay);
+        return;
+      }
+      
       setUserId(user?.id || null);
+      setIsCheckingAuth(false);
     };
+    
     fetchUser();
   }, []);
 
@@ -51,34 +67,34 @@ export default function CertifyIndexPage() {
     }
   }, [userTracks, router]);
 
-  // Not logged in
-  if (!userId && !tracksLoading) {
-    return (
-      <>
-        <Navbar />
-        <main className="min-h-screen py-12 px-4 bg-gray-50 flex items-center justify-center">
-          <Card className="p-8 text-center">
-            <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-            <h2 className="text-h4 font-heading text-gray-900 mb-2">로그인이 필요합니다</h2>
-            <p className="text-body text-gray-600 mb-6">
-              인증 페이지에 접근하려면 먼저 로그인해주세요.
-            </p>
-            <Button onClick={() => router.push('/login')}>로그인 페이지로 이동</Button>
-          </Card>
-        </main>
-        <Footer />
-      </>
-    );
-  }
-
-  // Loading tracks
-  if (tracksLoading) {
+  // Checking authentication or loading tracks
+  if (isCheckingAuth || tracksLoading) {
     return (
       <>
         <Navbar />
         <main className="min-h-screen py-12 px-4 bg-gray-50 flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <span className="ml-3 text-body text-gray-700">트랙 정보를 불러오는 중...</span>
+        </main>
+        <Footer />
+      </>
+    );
+  }
+
+  // Not logged in (after auth check is complete)
+  if (!userId) {
+    return (
+      <>
+        <Navbar />
+        <main className="min-h-screen py-12 px-4 bg-gray-50 flex items-center justify-center">
+          <Card className="p-8 text-center">
+            <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <h2 className="text-h4 font-heading text-gray-900 mb-2">로그인이 필요합니다</h2>
+            <p className="text-body text-gray-600 mb-6">
+              인증 페이지에 접근하려면 먼저 로그인해주세요.
+            </p>
+            <Button onClick={() => router.push('/login')}>로그인 페이지로 이동</Button>
+          </Card>
         </main>
         <Footer />
       </>
@@ -92,12 +108,12 @@ export default function CertifyIndexPage() {
         <Navbar />
         <main className="min-h-screen py-12 px-4 bg-gray-50 flex items-center justify-center">
           <Card className="p-8 text-center">
-            <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-            <h2 className="text-h4 font-heading text-gray-900 mb-2">등록된 트랙이 없습니다</h2>
+            <AlertCircle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
+            <h2 className="text-h4 font-heading text-gray-900 mb-2">참여 중인 트랙이 없습니다</h2>
             <p className="text-body text-gray-600 mb-6">
-              챌린지를 시작하려면 먼저 트랙을 선택해주세요.
+              관리자에게 트랙 배정을 요청해주세요.
             </p>
-            <Button onClick={() => router.push('/tracks')}>트랙 선택하기</Button>
+            <Button onClick={() => router.push('/contact-admin')}>관리자에게 문의</Button>
           </Card>
         </main>
         <Footer />

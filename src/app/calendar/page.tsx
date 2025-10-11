@@ -125,7 +125,7 @@ export default function CalendarPage() {
                 트랙을 선택하고 챌린지를 시작해보세요
               </p>
               <Button asChild>
-                <Link href="/tracks">트랙 선택하기</Link>
+                <Link href="/contact-admin">관리자에게 문의</Link>
               </Button>
             </Card>
           )}

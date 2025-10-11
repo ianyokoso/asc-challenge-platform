@@ -7,9 +7,19 @@
  * - PATCH: 버그 수정 및 작은 개선
  */
 
-export const APP_VERSION = '1.5.5';
+export const APP_VERSION = '1.5.6';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.5.6',
+    date: '2025-01-10',
+    changes: [
+      '로그인 후 리다이렉트 이슈 해결',
+      '인증 페이지 세션 확인 로직 개선 (재시도 추가)',
+      '/tracks 페이지 링크 완전 제거',
+      '모든 트랙 관련 링크를 /contact-admin으로 변경',
+    ],
+  },
   {
     version: '1.5.5',
     date: '2025-01-10',
