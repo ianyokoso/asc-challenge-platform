@@ -44,9 +44,29 @@ export function CertificationTrackingTable({
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
+  // 참여자별 미이행 횟수 계산
+  const participantsWithStats = useMemo(() => {
+    return data.participants.map(participant => {
+      let missingCount = 0;
+      
+      // 각 날짜별로 미인증 체크
+      data.dates.forEach(date => {
+        const certification = participant.certifications[date];
+        if (certification && certification.status === 'missing') {
+          missingCount++;
+        }
+      });
+      
+      return {
+        ...participant,
+        missingCount,
+      };
+    });
+  }, [data.participants, data.dates]);
+
   // 정렬된 참여자 목록
   const sortedParticipants = useMemo(() => {
-    const participants = [...data.participants];
+    const participants = [...participantsWithStats];
     
     participants.sort((a, b) => {
       let comparison = 0;
@@ -61,7 +81,7 @@ export function CertificationTrackingTable({
     });
     
     return participants;
-  }, [data.participants, sortField, sortDirection]);
+  }, [participantsWithStats, sortField, sortDirection]);
 
   // 정렬 토글
   const toggleSort = (field: SortField) => {
@@ -190,6 +210,16 @@ export function CertificationTrackingTable({
                   </button>
                 </th>
 
+                {/* 미이행 횟수 열 */}
+                <th 
+                  className="border-b border-l border-gray-200 px-4 py-3 text-center bg-gray-50"
+                  style={{ minWidth: '100px' }}
+                >
+                  <div className="text-body-sm font-semibold text-gray-700">
+                    미이행
+                  </div>
+                </th>
+
                 {/* 날짜 열들 */}
                 {data.dates.map((date) => (
                   <th
@@ -251,6 +281,23 @@ export function CertificationTrackingTable({
                       <span className="text-body-sm text-gray-600">
                         {participant.totalCertified}/{participant.totalRequired}
                       </span>
+                    </div>
+                  </td>
+
+                  {/* 미이행 횟수 */}
+                  <td className="border-b border-l border-gray-200 px-4 py-3 text-center">
+                    <div className="flex flex-col items-center gap-1">
+                      <span className={`
+                        text-body font-semibold
+                        ${participant.missingCount === 0 ? 'text-green-600' : 'text-red-600'}
+                      `}>
+                        {participant.missingCount}회
+                      </span>
+                      {participant.missingCount > 0 && (
+                        <span className="text-body-sm text-gray-500">
+                          ({((participant.missingCount / participant.totalRequired) * 100).toFixed(0)}%)
+                        </span>
+                      )}
                     </div>
                   </td>
 
