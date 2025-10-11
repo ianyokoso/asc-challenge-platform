@@ -84,10 +84,10 @@ export default function ContactAdminPage() {
               <AlertCircle className="w-8 h-8 text-yellow-600" />
             </div>
             <CardTitle className="text-2xl font-bold text-gray-800">
-              트랙 배정 대기 중
+              등록된 트랙이 없습니다
             </CardTitle>
             <p className="text-gray-600 mt-2">
-              아직 배정된 트랙이 없습니다. 관리자에게 문의해주세요.
+              관리자에게 트랙 추가 신청을 하시면 등록해 드립니다.
             </p>
           </CardHeader>
           

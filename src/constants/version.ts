@@ -7,9 +7,19 @@
  * - PATCH: 버그 수정 및 작은 개선
  */
 
-export const APP_VERSION = '1.5.4';
+export const APP_VERSION = '1.5.5';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.5.5',
+    date: '2025-01-10',
+    changes: [
+      '트랙 없는 사용자 안내 메시지 개선',
+      '리더보드에서 트랙이 없는 사용자 제외',
+      '트랙 제외된 멤버 점수 자동 제외',
+      'get_leaderboard 함수 업데이트',
+    ],
+  },
   {
     version: '1.5.4',
     date: '2025-01-10',
