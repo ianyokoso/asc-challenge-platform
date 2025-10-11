@@ -179,11 +179,7 @@ export default function LoginPage() {
           {/* 이용약관 링크 */}
           <div className="mt-6 text-center">
             <p className="text-xs text-gray-500">
-              로그인 시{' '}
-              <Link href="/terms" className="text-blue-600 hover:underline">
-                이용약관
-              </Link>
-              에 동의한 것으로 간주됩니다.
+              로그인 시 이용약관에 동의한 것으로 간주됩니다.
             </p>
           </div>
 

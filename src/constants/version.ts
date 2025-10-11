@@ -7,9 +7,19 @@
  * - PATCH: 버그 수정 및 작은 개선
  */
 
-export const APP_VERSION = '1.5.6';
+export const APP_VERSION = '1.5.7';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.5.7',
+    date: '2025-01-10',
+    changes: [
+      '로그인 후 무한 로딩 문제 해결',
+      '재시도 로직 개선 (useRef 사용, 최대 5회, 800ms 간격)',
+      '/terms 페이지 링크 제거 (404 에러 해결)',
+      '상세한 디버깅 로그 추가',
+    ],
+  },
   {
     version: '1.5.6',
     date: '2025-01-10',

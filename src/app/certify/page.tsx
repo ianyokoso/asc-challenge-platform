@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -32,26 +32,34 @@ export default function CertifyIndexPage() {
   const router = useRouter();
   const [userId, setUserId] = useState<string | null>(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const retryCountRef = useRef(0);
 
   // Get current user with retry logic for fresh logins
   useEffect(() => {
-    let retryCount = 0;
-    const maxRetries = 3;
-    const retryDelay = 500; // 500ms delay between retries
+    const maxRetries = 5;
+    const retryDelay = 800; // 800ms delay between retries
 
     const fetchUser = async () => {
+      console.log(`[CertifyPage] 🔍 Attempting to fetch user (attempt ${retryCountRef.current + 1}/${maxRetries + 1})...`);
       const user = await getUser();
       
-      if (!user && retryCount < maxRetries) {
-        // Retry if user is not found (might be fresh login)
-        retryCount++;
-        console.log(`[CertifyPage] Retrying user fetch (${retryCount}/${maxRetries})...`);
-        setTimeout(fetchUser, retryDelay);
+      if (user) {
+        console.log('[CertifyPage] ✅ User found:', user.id);
+        setUserId(user.id);
+        setIsCheckingAuth(false);
         return;
       }
       
-      setUserId(user?.id || null);
-      setIsCheckingAuth(false);
+      // Retry if user is not found and we haven't exceeded max retries
+      if (retryCountRef.current < maxRetries) {
+        retryCountRef.current++;
+        console.log(`[CertifyPage] ⏳ User not found, retrying in ${retryDelay}ms...`);
+        setTimeout(fetchUser, retryDelay);
+      } else {
+        console.log('[CertifyPage] ❌ Max retries reached, user not found');
+        setUserId(null);
+        setIsCheckingAuth(false);
+      }
     };
     
     fetchUser();
