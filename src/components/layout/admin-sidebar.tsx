@@ -9,6 +9,7 @@ import {
   Settings,
   Trophy,
   ArrowLeft,
+  BarChart3,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -22,6 +23,11 @@ const navigation = [
     name: '사용자 관리',
     href: '/admin/users',
     icon: Users,
+  },
+  {
+    name: '인증 현황',
+    href: '/admin/tracking',
+    icon: BarChart3,
   },
   {
     name: '설정',
