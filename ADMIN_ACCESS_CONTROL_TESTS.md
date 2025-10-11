@@ -1,521 +1,381 @@
-# 관리자 접근 제어 테스트 문서
+# 관리자 접근 제어 테스트 가이드 (T-004)
 
-## 개요
-ASC 챌린지 플랫폼의 관리자 전용 기능에 대한 접근 제어 테스트 시나리오입니다.
+## 📋 개요
 
-## 테스트 환경
-- **Framework**: Next.js 14 (App Router)
-- **Database**: Supabase (PostgreSQL)
-- **Auth**: Discord OAuth2 + Supabase Auth
-- **State Management**: @tanstack/react-query
-- **Security Layer**: Row Level Security (RLS) + Server-side checks
+이 문서는 T-004 "관리자만 대시보드 및 리셋 기능 접근 가능" 작업의 테스트 전략 및 검증 항목을 설명합니다.
+
+## 🎯 테스트 목표
+
+1. **관리자 인증**: 관리자만 관리자 페이지와 API에 접근 가능
+2. **비관리자 차단**: 일반 사용자의 관리자 페이지/API 접근 차단
+3. **세션 보안**: 서버 사이드와 클라이언트 사이드 모두에서 권한 확인
+4. **RLS 정책**: Supabase RLS가 올바르게 적용되는지 확인
+5. **에러 핸들링**: 권한 실패 시 적절한 리다이렉션 및 메시지 표시
 
 ---
 
-## 1. 관리자 권한 확인 테스트
+## 🔐 1. Supabase RLS 정책 테스트
 
-### 1.1 관리자 계정 로그인
-**테스트 ID**: `ADMIN-001`  
-**목적**: 관리자 계정이 정상적으로 인증되는지 확인
+### 1.1. `admin_users` 테이블 RLS 확인
 
-**전제 조건**:
-- Supabase `admin_users` 테이블에 등록된 관리자 계정 존재
-- Discord OAuth2 설정 완료
-
-**테스트 단계**:
-1. `/login` 페이지 접속
-2. "Discord로 시작하기" 버튼 클릭
-3. Discord OAuth2 인증 완료
-4. 애플리케이션으로 리다이렉트
-
-**기대 결과**:
-- ✅ 로그인 성공
-- ✅ `/certify` 페이지로 리다이렉트
-- ✅ Navbar에 "관리" 링크 표시
-- ✅ 콘솔에 `[isUserAdmin] Admin check result: true` 로그 출력
-
-**SQL 확인 쿼리**:
+**테스트 쿼리:**
 ```sql
--- 관리자 계정 확인
-SELECT * FROM public.admin_users 
-WHERE user_id = '<user_id>' AND is_active = true;
+-- 일반 사용자로 admin_users 테이블 접근 시도 (차단되어야 함)
+SELECT * FROM admin_users;
+-- 결과: 빈 배열 또는 권한 에러
+
+-- is_admin RPC 함수로 관리자 확인 (SECURITY DEFINER로 RLS 우회)
+SELECT is_admin('YOUR_USER_ID');
+-- 관리자: true, 비관리자: false
 ```
 
----
+**검증 항목:**
+- [ ] 일반 사용자는 `admin_users` 테이블에 직접 접근 불가
+- [ ] `is_admin()` RPC 함수는 모든 인증된 사용자가 호출 가능
+- [ ] `is_admin()` 함수는 `SECURITY DEFINER`로 RLS를 우회하여 정확한 결과 반환
 
-### 1.2 비관리자 계정 로그인
-**테스트 ID**: `ADMIN-002`  
-**목적**: 비관리자 계정이 관리자 기능에 접근할 수 없는지 확인
+### 1.2. 관리자 전용 RPC 함수 테스트
 
-**전제 조건**:
-- `admin_users` 테이블에 등록되지 않은 일반 사용자 계정
+**테스트 쿼리:**
+```sql
+-- 관리자로 로그인 후
+SELECT * FROM get_admin_users();
+-- 결과: 관리자 목록 반환
 
-**테스트 단계**:
-1. 비관리자 계정으로 로그인
-2. Navbar 확인
-
-**기대 결과**:
-- ✅ 로그인 성공
-- ✅ Navbar에 "관리" 링크 **표시되지 않음**
-- ✅ 콘솔에 `[isUserAdmin] Admin check result: false` 로그 출력
-
----
-
-## 2. 관리자 페이지 접근 테스트
-
-### 2.1 관리자의 대시보드 접근
-**테스트 ID**: `ADMIN-003`  
-**목적**: 관리자가 대시보드에 정상적으로 접근할 수 있는지 확인
-
-**테스트 단계**:
-1. 관리자 계정으로 로그인
-2. Navbar의 "관리" 링크 클릭 (또는 `/admin` 직접 접속)
-
-**기대 결과**:
-- ✅ 관리자 대시보드 렌더링
-- ✅ 통계 정보 표시 (전체 참가자, 오늘 인증, 탈락 후보)
-- ✅ AdminSidebar 표시
-- ✅ 콘솔에 권한 확인 성공 로그
-
----
-
-### 2.2 비관리자의 대시보드 접근 시도
-**테스트 ID**: `ADMIN-004`  
-**목적**: 비관리자가 관리자 페이지에 접근 시 차단되는지 확인
-
-**테스트 단계**:
-1. 비관리자 계정으로 로그인
-2. 브라우저 주소창에 `/admin` 직접 입력
-
-**기대 결과**:
-- ✅ 대시보드 **렌더링되지 않음**
-- ✅ "접근 권한이 없습니다" Toast 메시지 표시
-- ✅ 홈 페이지(`/`)로 자동 리다이렉트
-- ✅ 콘솔에 `[AdminDashboard] User is not admin, redirecting to home` 로그
-
----
-
-### 2.3 미로그인 상태에서 대시보드 접근 시도
-**테스트 ID**: `ADMIN-005`  
-**목적**: 로그인하지 않은 사용자가 관리자 페이지 접근 시 차단되는지 확인
-
-**테스트 단계**:
-1. 로그아웃 상태 확인
-2. `/admin` 페이지 직접 접속
-
-**기대 결과**:
-- ✅ "로그인이 필요합니다" Toast 메시지 표시
-- ✅ `/login` 페이지로 자동 리다이렉트
-- ✅ 콘솔에 `[AdminDashboard] No user found, redirecting to login` 로그
-
----
-
-## 3. API 라우트 보호 테스트
-
-### 3.1 관리자 API 호출 (인증됨)
-**테스트 ID**: `ADMIN-006`  
-**목적**: 관리자 계정이 보호된 API를 호출할 수 있는지 확인
-
-**테스트 단계**:
-1. 관리자 계정으로 로그인
-2. 브라우저 개발자 도구 콘솔에서 API 호출:
-```javascript
-fetch('/api/admin/stats', {
-  method: 'GET',
-  credentials: 'include'
-}).then(r => r.json()).then(console.log)
+-- 일반 사용자로 로그인 후
+SELECT * FROM get_admin_users();
+-- 결과: Unauthorized 에러
 ```
 
-**기대 결과**:
-```json
-{
-  "success": true,
-  "data": {
-    "totalUsers": 10,
-    "todayCertifications": 5,
-    "dropoutCandidates": 2
-  },
-  "timestamp": "2025-01-10T..."
+**검증 항목:**
+- [ ] `get_admin_users()` 함수는 관리자만 호출 가능
+- [ ] 비관리자 호출 시 명확한 에러 메시지 반환
+
+---
+
+## 🌐 2. API 라우트 권한 테스트
+
+### 2.1. `/api/admin/check` - 관리자 권한 확인 API
+
+**테스트 시나리오:**
+
+| 시나리오 | 사용자 | 예상 응답 | 상태 코드 |
+|---------|-------|----------|----------|
+| 로그인 안 함 | 없음 | `{ isAdmin: false, userId: null, error: "Not authenticated" }` | 401 |
+| 일반 사용자 | 비관리자 | `{ isAdmin: false, userId: "USER_ID" }` | 200 |
+| 관리자 | 관리자 | `{ isAdmin: true, userId: "ADMIN_ID" }` | 200 |
+
+**테스트 방법:**
+```bash
+# 1. 로그인하지 않은 상태
+curl https://your-app.vercel.app/api/admin/check
+
+# 2. 일반 사용자로 로그인 후 (브라우저 쿠키 포함)
+curl -X GET https://your-app.vercel.app/api/admin/check \
+  -H "Cookie: YOUR_SESSION_COOKIE"
+
+# 3. 관리자로 로그인 후
+curl -X GET https://your-app.vercel.app/api/admin/check \
+  -H "Cookie: ADMIN_SESSION_COOKIE"
+```
+
+**검증 항목:**
+- [ ] 미인증 사용자: 401 에러 반환
+- [ ] 일반 사용자: `isAdmin: false` 반환
+- [ ] 관리자: `isAdmin: true` 반환
+
+### 2.2. `/api/admin/users` - 사용자 목록 조회 API
+
+**테스트 시나리오:**
+
+| 시나리오 | 사용자 | 예상 응답 | 상태 코드 |
+|---------|-------|----------|----------|
+| 로그인 안 함 | 없음 | `{ error: "Unauthorized: Not authenticated" }` | 401 |
+| 일반 사용자 | 비관리자 | `{ error: "Forbidden: Admin access required" }` | 403 |
+| 관리자 | 관리자 | `{ users: [...], count: N }` | 200 |
+
+**검증 항목:**
+- [ ] 미인증 사용자: 401 에러
+- [ ] 일반 사용자: 403 Forbidden 에러
+- [ ] 관리자: 사용자 목록과 트랙 정보 반환
+
+### 2.3. `/api/admin/stats` - 관리자 통계 API
+
+**테스트 시나리오:**
+
+| 시나리오 | 사용자 | 예상 응답 | 상태 코드 |
+|---------|-------|----------|----------|
+| 로그인 안 함 | 없음 | `{ error: "Unauthorized: Not authenticated" }` | 401 |
+| 일반 사용자 | 비관리자 | `{ error: "Forbidden: Admin access required" }` | 403 |
+| 관리자 | 관리자 | `{ stats: { totalUsers, todayCertifications, dropoutCandidates } }` | 200 |
+
+**검증 항목:**
+- [ ] 미인증 사용자: 401 에러
+- [ ] 일반 사용자: 403 Forbidden 에러
+- [ ] 관리자: 정확한 통계 데이터 반환
+
+---
+
+## 🔒 3. Next.js 미들웨어 테스트
+
+### 3.1. `/admin/*` 경로 접근 제어
+
+**테스트 시나리오:**
+
+| 시나리오 | 사용자 | 접근 경로 | 예상 동작 |
+|---------|-------|----------|----------|
+| 로그인 안 함 | 없음 | `/admin` | `/login?error=로그인이 필요합니다&redirect=/admin` 으로 리다이렉션 |
+| 일반 사용자 | 비관리자 | `/admin/users` | `/?error=관리자만 접근할 수 있습니다` 으로 리다이렉션 |
+| 관리자 | 관리자 | `/admin/settings` | 페이지 정상 렌더링 |
+
+**테스트 방법:**
+```bash
+# 1. 로그인하지 않고 /admin 접근
+# 브라우저에서: https://your-app.vercel.app/admin
+# 예상: /login 페이지로 리다이렉션 + 에러 메시지
+
+# 2. 일반 사용자로 로그인 후 /admin/users 접근
+# 예상: 홈페이지로 리다이렉션 + 에러 토스트
+
+# 3. 관리자로 로그인 후 /admin 접근
+# 예상: 관리자 대시보드 페이지 정상 렌더링
+```
+
+**검증 항목:**
+- [ ] 미인증 사용자: 로그인 페이지로 리다이렉션 (redirect 파라미터 포함)
+- [ ] 일반 사용자: 홈페이지로 리다이렉션 (에러 메시지 포함)
+- [ ] 관리자: 페이지 정상 접근
+- [ ] 리다이렉션 시 적절한 에러 메시지 전달
+
+---
+
+## 🛡️ 4. 클라이언트 사이드 가드 컴포넌트 테스트
+
+### 4.1. `AdminPageGuard` 컴포넌트 테스트
+
+**테스트 시나리오:**
+
+| 시나리오 | 사용자 상태 | 예상 UI | 리다이렉션 |
+|---------|-----------|---------|----------|
+| 로딩 중 | - | 로딩 스피너 + "권한을 확인하는 중..." | 없음 |
+| 로그인 안 함 | `user: null` | "로그인이 필요합니다" 카드 + 로그인 버튼 | `/login` |
+| 일반 사용자 | `isAdmin: false` | "접근 권한 없음" 카드 + 홈 버튼 | `/` |
+| 관리자 | `isAdmin: true` | 자식 컴포넌트 렌더링 | 없음 |
+
+**테스트 방법:**
+```tsx
+// 1. AdminPageGuard로 감싼 관리자 페이지 생성
+// src/app/admin/test/page.tsx
+import { AdminPageGuard } from '@/components/guards/AdminPageGuard';
+
+export default function AdminTestPage() {
+  return (
+    <AdminPageGuard>
+      <div>
+        <h1>관리자 전용 페이지</h1>
+        <p>이 페이지는 관리자만 볼 수 있습니다.</p>
+      </div>
+    </AdminPageGuard>
+  );
 }
+
+// 2. 브라우저에서 /admin/test 접근
+// - 로그인 안 함: "로그인이 필요합니다" UI 표시
+// - 일반 사용자: "접근 권한 없음" UI 표시
+// - 관리자: "관리자 전용 페이지" 콘텐츠 표시
 ```
-- ✅ HTTP 200 응답
-- ✅ 통계 데이터 정상 반환
+
+**검증 항목:**
+- [ ] 로딩 중: 적절한 로딩 UI 표시
+- [ ] 미인증: "로그인이 필요합니다" 메시지 + 로그인 버튼
+- [ ] 비관리자: "접근 권한 없음" 메시지 + 홈 버튼
+- [ ] 관리자: 보호된 콘텐츠 정상 렌더링
+- [ ] 권한 확인 중 에러 발생 시 적절한 토스트 메시지
 
 ---
 
-### 3.2 비관리자 API 호출 시도
-**테스트 ID**: `ADMIN-007`  
-**목적**: 비관리자가 보호된 API 호출 시 차단되는지 확인
+## 🧪 5. 통합 테스트 시나리오
 
-**테스트 단계**:
-1. 비관리자 계정으로 로그인
-2. 브라우저 개발자 도구 콘솔에서 API 호출:
-```javascript
-fetch('/api/admin/stats', {
-  method: 'GET',
-  credentials: 'include'
-}).then(r => r.json()).then(console.log)
-```
+### 5.1. 일반 사용자 플로우
 
-**기대 결과**:
-```json
-{
-  "error": "권한이 없습니다",
-  "code": "FORBIDDEN",
-  "message": "관리자만 접근할 수 있습니다.",
-  "userId": "<user_id>"
-}
-```
-- ✅ HTTP 403 Forbidden 응답
-- ✅ 데이터 반환 **안 됨**
+**시나리오:**
+1. 일반 사용자가 로그인
+2. 브라우저 주소창에 `/admin` 입력
+3. 미들웨어가 권한 체크
+4. 홈페이지로 리다이렉션 + 에러 메시지 표시
+5. 직접 `/api/admin/users` API 호출 시도
+6. 403 Forbidden 에러 반환
 
----
+**검증 항목:**
+- [ ] 1단계 (미들웨어): `/admin` 접근 차단
+- [ ] 2단계 (클라이언트 가드): 컴포넌트 레벨 차단
+- [ ] 3단계 (API 라우트): API 레벨 차단
+- [ ] 모든 단계에서 명확한 에러 메시지 제공
 
-### 3.3 미인증 API 호출 시도
-**테스트 ID**: `ADMIN-008`  
-**목적**: 로그인하지 않은 상태에서 API 호출 시 차단되는지 확인
+### 5.2. 관리자 플로우
 
-**테스트 단계**:
-1. 로그아웃 상태
-2. API 호출 시도
+**시나리오:**
+1. 관리자가 로그인
+2. `/admin` 페이지 접근
+3. 미들웨어 권한 확인 통과
+4. `AdminPageGuard` 권한 확인 통과
+5. 관리자 대시보드 정상 렌더링
+6. `/api/admin/users` API 호출
+7. 사용자 목록 정상 반환
 
-**기대 결과**:
-```json
-{
-  "error": "인증이 필요합니다",
-  "code": "UNAUTHORIZED",
-  "message": "로그인 후 다시 시도해주세요."
-}
-```
-- ✅ HTTP 401 Unauthorized 응답
+**검증 항목:**
+- [ ] 미들웨어 통과
+- [ ] 클라이언트 가드 통과
+- [ ] API 호출 성공
+- [ ] 모든 관리자 기능 정상 작동
 
----
+### 5.3. 세션 만료 시나리오
 
-## 4. Supabase RLS 정책 테스트
-
-### 4.1 관리자 - 모든 사용자 조회
-**테스트 ID**: `ADMIN-009`  
-**목적**: 관리자가 RLS를 통해 모든 사용자 데이터를 조회할 수 있는지 확인
-
-**Supabase SQL Editor에서 실행** (관리자 user_id로 `auth.uid()` 설정):
-```sql
--- 관리자로 설정
-SELECT set_config('request.jwt.claim.sub', '<admin_user_id>', true);
-
--- 모든 사용자 조회 시도
-SELECT * FROM public.users;
-```
-
-**기대 결과**:
-- ✅ 모든 사용자 레코드 반환
-- ✅ RLS 정책 통과
-
----
-
-### 4.2 비관리자 - 타인 사용자 조회 시도
-**테스트 ID**: `ADMIN-010`  
-**목적**: 비관리자가 다른 사용자의 데이터를 조회할 수 없는지 확인
-
-**Supabase SQL Editor에서 실행** (비관리자 user_id로 설정):
-```sql
--- 비관리자로 설정
-SELECT set_config('request.jwt.claim.sub', '<non_admin_user_id>', true);
-
--- 모든 사용자 조회 시도
-SELECT * FROM public.users;
-```
-
-**기대 결과**:
-- ✅ 자신의 레코드만 반환
-- ✅ 타인의 데이터 **반환되지 않음**
-
----
-
-### 4.3 user_tracks 테이블 관리자 권한
-**테스트 ID**: `ADMIN-011`  
-**목적**: 관리자만 user_tracks를 수정/삭제할 수 있는지 확인
-
-**테스트 단계**:
-1. 관리자 계정으로 `/admin/users` 접속
-2. 사용자의 "관리" 버튼 클릭
-3. 트랙 배정 변경 (추가/제거)
-4. 저장
-
-**기대 결과**:
-- ✅ 트랙 배정 성공
-- ✅ "트랙 배정 완료" Toast 표시
-- ✅ 사용자 트랙 목록 업데이트
-
-**SQL 확인**:
-```sql
-SELECT * FROM public.user_tracks WHERE user_id = '<target_user_id>';
-```
-
----
-
-### 4.4 비관리자 user_tracks 수정 시도
-**테스트 ID**: `ADMIN-012`  
-**목적**: 비관리자가 RLS를 우회하여 트랙을 수정할 수 없는지 확인
-
-**SQL 직접 실행 시도** (비관리자 user_id로):
-```sql
-SELECT set_config('request.jwt.claim.sub', '<non_admin_user_id>', true);
-
--- 다른 사용자의 트랙 삭제 시도
-DELETE FROM public.user_tracks 
-WHERE user_id != '<non_admin_user_id>';
-```
-
-**기대 결과**:
-- ✅ RLS 정책으로 인해 삭제 **차단됨**
-- ✅ `0 rows affected` 또는 Permission denied 에러
-
----
-
-## 5. 엣지 케이스 테스트
-
-### 5.1 관리자 계정 비활성화
-**테스트 ID**: `ADMIN-013`  
-**목적**: `is_active = false`인 관리자가 권한을 잃는지 확인
-
-**테스트 단계**:
-1. Supabase에서 관리자 계정을 비활성화:
-```sql
-UPDATE public.admin_users 
-SET is_active = false 
-WHERE user_id = '<admin_user_id>';
-```
-2. 해당 계정으로 로그인
-3. `/admin` 접속 시도
-
-**기대 결과**:
-- ✅ `isUserAdmin` 함수 `false` 반환
-- ✅ 관리자 페이지 접근 차단
-- ✅ 홈으로 리다이렉트
-
----
-
-### 5.2 세션 만료 후 접근
-**테스트 ID**: `ADMIN-014`  
-**목적**: 세션이 만료된 후 관리자 페이지 접근 시 처리되는지 확인
-
-**테스트 단계**:
+**시나리오:**
 1. 관리자로 로그인
-2. 브라우저 개발자 도구 → Application → Cookies
-3. Supabase 세션 쿠키 삭제 (`sb-<project>-auth-token`)
-4. `/admin` 페이지 새로고침
+2. 관리자 페이지에서 작업 중
+3. 세션이 만료됨
+4. API 요청 시 401 에러
+5. 로그인 페이지로 자동 리다이렉션
 
-**기대 결과**:
-- ✅ "로그인이 필요합니다" 메시지
-- ✅ `/login`으로 리다이렉트
-
----
-
-### 5.3 동시 로그인 (다른 브라우저)
-**테스트 ID**: `ADMIN-015`  
-**목적**: 한 계정으로 여러 브라우저에서 동시 로그인 시 권한이 일관되게 동작하는지 확인
-
-**테스트 단계**:
-1. Chrome에서 관리자 계정 로그인
-2. Firefox에서 동일 계정 로그인
-3. 두 브라우저에서 각각 `/admin` 접속
-
-**기대 결과**:
-- ✅ 두 브라우저 모두 관리자 대시보드 접근 가능
-- ✅ 통계 정보 일관되게 표시
+**검증 항목:**
+- [ ] 세션 만료 감지
+- [ ] 적절한 에러 메시지
+- [ ] 로그인 페이지로 리다이렉션
+- [ ] 리다이렉션 후 원래 페이지로 복귀 가능
 
 ---
 
-## 6. React Query 상태 관리 테스트
+## 📊 6. 수동 테스트 체크리스트
 
-### 6.1 권한 체크 캐싱
-**테스트 ID**: `ADMIN-016`  
-**목적**: React Query가 관리자 권한 체크 결과를 적절히 캐싱하는지 확인
+### 6.1. 브라우저 테스트
 
-**테스트 단계**:
-1. 관리자 계정 로그인
-2. 개발자 도구 Network 탭 열기
-3. `/admin` 페이지 접속
-4. 다른 관리자 페이지로 이동 (`/admin/users`)
-5. Network 탭에서 `is_admin` RPC 호출 횟수 확인
+- [ ] **Chrome (데스크톱)**
+  - [ ] 미인증 사용자가 `/admin` 접근 시 로그인 페이지로 리다이렉션
+  - [ ] 일반 사용자가 `/admin` 접근 시 홈페이지로 리다이렉션
+  - [ ] 관리자가 `/admin` 정상 접근
+  - [ ] 개발자 도구 콘솔에 적절한 로그 출력
 
-**기대 결과**:
-- ✅ 첫 접속 시 `is_admin` RPC 1회 호출
-- ✅ 10분 이내 재접속 시 캐시된 데이터 사용 (추가 호출 **없음**)
-- ✅ `staleTime: 1000 * 60 * 10` (10분) 설정 확인
+- [ ] **Firefox (데스크톱)**
+  - [ ] 동일한 테스트 반복
 
----
+- [ ] **Safari (Mac/iOS)**
+  - [ ] 동일한 테스트 반복
 
-### 6.2 권한 체크 에러 처리
-**테스트 ID**: `ADMIN-017`  
-**목적**: RPC 호출 실패 시 에러가 적절히 처리되는지 확인
+- [ ] **Edge (데스크톱)**
+  - [ ] 동일한 테스트 반복
 
-**테스트 단계**:
-1. Network 탭에서 `is_admin` RPC 요청 차단 (Throttling 또는 Offline 모드)
-2. `/admin` 페이지 접속
+### 6.2. 모바일 테스트
 
-**기대 결과**:
-- ✅ "권한 확인 실패" Toast 메시지
-- ✅ 로딩 상태 해제
-- ✅ 관리자 페이지 **렌더링되지 않음**
+- [ ] **Chrome Mobile (Android)**
+  - [ ] 미들웨어 리다이렉션 정상 작동
+  - [ ] 에러 메시지가 모바일에서 잘 보임
 
----
+- [ ] **Safari Mobile (iOS)**
+  - [ ] 동일한 테스트 반복
 
-## 7. 성능 테스트
+### 6.3. 네트워크 조건 테스트
 
-### 7.1 관리자 페이지 초기 로딩 시간
-**테스트 ID**: `ADMIN-018`  
-**목적**: 관리자 페이지 로딩 성능 확인
+- [ ] **느린 3G 네트워크**
+  - [ ] 권한 체크 중 로딩 UI 정상 표시
+  - [ ] 타임아웃 없이 정상 작동
 
-**테스트 단계**:
-1. Network 탭에서 속도 측정 (Performance Insights)
-2. `/admin` 접속
-3. First Contentful Paint (FCP), Largest Contentful Paint (LCP) 측정
-
-**기대 결과**:
-- ✅ FCP < 1.5초
-- ✅ LCP < 2.5초
-- ✅ 권한 체크 + 통계 조회 병렬 처리
+- [ ] **오프라인**
+  - [ ] 적절한 에러 메시지 표시
 
 ---
 
-## 8. 보안 테스트
+## 🐛 7. 알려진 문제 및 해결 방법
 
-### 8.1 JWT 토큰 조작 시도
-**테스트 ID**: `ADMIN-019`  
-**목적**: JWT 토큰을 조작하여 관리자 권한을 얻을 수 없는지 확인
+### 7.1. RLS 무한 루프 문제
 
-**테스트 단계**:
-1. 비관리자 계정 로그인
-2. 개발자 도구 → Application → Cookies
-3. `sb-<project>-auth-token` 값 확인
-4. JWT 디코더로 payload 확인 및 조작 시도
-5. 조작된 토큰으로 `/admin` 접속 시도
+**문제:**
+`is_admin()` RPC 함수 내에서 `admin_users` 테이블을 조회할 때, RLS 정책이 다시 `is_admin()`을 호출하여 무한 루프 발생.
 
-**기대 결과**:
-- ✅ Supabase가 서명 검증 실패로 토큰 거부
-- ✅ 401 Unauthorized 또는 403 Forbidden
-- ✅ 관리자 페이지 접근 차단
+**해결:**
+`is_admin()` 함수를 `SECURITY DEFINER`로 선언하여 RLS를 우회하도록 수정.
 
----
-
-### 8.2 SQL Injection 시도
-**테스트 ID**: `ADMIN-020`  
-**목적**: SQL Injection 공격이 차단되는지 확인
-
-**테스트 단계**:
-1. API 호출 시 악의적인 입력 전송:
-```javascript
-fetch('/api/admin/stats', {
-  method: 'GET',
-  headers: {
-    'X-User-Id': "'; DROP TABLE users; --"
-  }
-}).then(r => r.json()).then(console.log)
-```
-
-**기대 결과**:
-- ✅ Supabase Prepared Statements로 인해 SQL Injection 차단
-- ✅ 정상적인 에러 응답 또는 무시
-- ✅ 데이터베이스 무결성 유지
-
----
-
-## 테스트 체크리스트
-
-### 인증/권한
-- [ ] ADMIN-001: 관리자 로그인
-- [ ] ADMIN-002: 비관리자 로그인
-- [ ] ADMIN-003: 관리자 대시보드 접근
-- [ ] ADMIN-004: 비관리자 대시보드 접근 차단
-- [ ] ADMIN-005: 미로그인 대시보드 접근 차단
-
-### API 보호
-- [ ] ADMIN-006: 관리자 API 호출 성공
-- [ ] ADMIN-007: 비관리자 API 호출 차단
-- [ ] ADMIN-008: 미인증 API 호출 차단
-
-### RLS 정책
-- [ ] ADMIN-009: 관리자 모든 사용자 조회
-- [ ] ADMIN-010: 비관리자 타인 조회 차단
-- [ ] ADMIN-011: 관리자 트랙 배정
-- [ ] ADMIN-012: 비관리자 트랙 수정 차단
-
-### 엣지 케이스
-- [ ] ADMIN-013: 비활성 관리자 차단
-- [ ] ADMIN-014: 세션 만료 처리
-- [ ] ADMIN-015: 동시 로그인
-
-### 상태 관리
-- [ ] ADMIN-016: 권한 체크 캐싱
-- [ ] ADMIN-017: 에러 처리
-
-### 성능
-- [ ] ADMIN-018: 페이지 로딩 시간
-
-### 보안
-- [ ] ADMIN-019: JWT 조작 차단
-- [ ] ADMIN-020: SQL Injection 차단
-
----
-
-## 테스트 실행 방법
-
-### 1. 로컬 환경
-```bash
-# 개발 서버 실행
-npm run dev
-
-# 브라우저에서 http://localhost:3000 접속
-# 위 테스트 시나리오 순차 실행
-```
-
-### 2. Supabase SQL Editor
 ```sql
--- Supabase 대시보드 → SQL Editor
--- 0010_enhance_admin_rls_policies.sql 실행 확인
--- RLS 정책 테스트 쿼리 실행
+CREATE OR REPLACE FUNCTION public.is_admin(check_user_id UUID DEFAULT NULL)
+RETURNS BOOLEAN AS $$
+-- ...
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 ```
 
-### 3. API 테스트 (cURL)
-```bash
-# 관리자 API 호출 (쿠키 필요)
-curl -X GET http://localhost:3000/api/admin/stats \
-  -H "Cookie: sb-<project>-auth-token=<token>" \
-  -H "Content-Type: application/json"
+### 7.2. 미들웨어에서 쿠키 접근 불가
+
+**문제:**
+Next.js 미들웨어에서 `cookies()` 함수가 제대로 작동하지 않음.
+
+**해결:**
+`request.cookies.getAll()`을 직접 사용하여 쿠키 가져오기.
+
+---
+
+## ✅ 8. 테스트 통과 기준
+
+### 8.1. 필수 통과 항목
+
+- [x] Supabase RLS 정책이 올바르게 적용됨
+- [x] 관리자 전용 API 라우트가 비관리자 접근을 차단함
+- [x] Next.js 미들웨어가 서버 사이드에서 권한 체크함
+- [x] `AdminPageGuard` 컴포넌트가 클라이언트 사이드에서 권한 체크함
+- [x] 권한 실패 시 적절한 리다이렉션 및 에러 메시지 표시
+- [ ] 모든 브라우저에서 정상 작동
+- [ ] 모바일에서 정상 작동
+- [ ] 느린 네트워크에서도 안정적으로 작동
+
+### 8.2. 선택 통과 항목
+
+- [ ] 세션 만료 시 자동 리다이렉션
+- [ ] 권한 체크 성능 최적화 (캐싱)
+- [ ] 관리자 권한 변경 시 실시간 반영
+- [ ] 로그인 후 원래 페이지로 자동 복귀
+
+---
+
+## 🚀 9. 배포 전 최종 체크리스트
+
+- [ ] 모든 RLS 정책이 프로덕션 Supabase에 적용됨
+- [ ] 환경 변수가 Vercel에 올바르게 설정됨
+- [ ] 관리자 계정이 `admin_users` 테이블에 등록됨
+- [ ] 프로덕션 환경에서 수동 테스트 완료
+- [ ] 에러 로그 모니터링 설정 완료
+- [ ] 사용자에게 관리자 페이지 접근 방법 안내 완료
+
+---
+
+## 📝 10. 테스트 로그 예시
+
+### 10.1. 성공 로그
+
+```
+[Middleware] Admin access granted for user: a1b2c3d4-...
+[AdminPageGuard] Admin check result: true
+[Admin Check API] ✅ isAdmin: true, userId: a1b2c3d4-...
+```
+
+### 10.2. 실패 로그 (예상됨)
+
+```
+[Middleware] Non-admin user tried to access admin page: x9y8z7w6-...
+[AdminPageGuard] User is not admin, redirecting to home
+[Admin Users API] Access denied: { userId: 'x9y8z7w6-...', isAdmin: false }
 ```
 
 ---
 
-## 문제 발생 시 디버깅
+## 📞 문의 및 지원
 
-### 관리자 권한이 인식되지 않을 때
-```sql
--- 1. admin_users 테이블 확인
-SELECT * FROM public.admin_users WHERE discord_id = '<discord_id>';
+테스트 중 문제가 발생하면 다음을 확인하세요:
 
--- 2. is_admin 함수 테스트
-SELECT public.is_admin('<user_id>');
-
--- 3. RLS 정책 확인
-SELECT * FROM pg_policies WHERE tablename = 'admin_users';
-```
-
-### API 호출이 403으로 차단될 때
-1. 브라우저 개발자 도구 → Network 탭
-2. 요청 헤더의 Cookie 확인
-3. `sb-<project>-auth-token` 유효성 확인
-4. 서버 콘솔 로그 확인
+1. **Supabase 로그**: Dashboard > Logs > API
+2. **Vercel 로그**: Deployment > Functions > Logs
+3. **브라우저 콘솔**: 클라이언트 사이드 에러 확인
+4. **네트워크 탭**: API 응답 상태 코드 확인
 
 ---
 
-## 보고
-
-테스트 완료 후 다음 정보를 포함하여 보고:
-
-1. **테스트 환경**: 브라우저, OS, Node 버전
-2. **성공한 테스트**: 체크리스트
-3. **실패한 테스트**: 테스트 ID, 에러 메시지, 스크린샷
-4. **성능 지표**: 페이지 로딩 시간, API 응답 시간
-5. **보안 이슈**: 발견된 취약점 및 권장 사항
-
+**작성일**: 2025-10-11  
+**버전**: 1.0  
+**작업 코드**: T-004

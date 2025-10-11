@@ -1,21 +1,37 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Footer } from '@/components/layout/footer';
 import { getUser, signOut } from '@/lib/supabase/client';
-import { CheckCircle, Users, Trophy, Calendar } from 'lucide-react';
+import { CheckCircle, Users, Trophy, Calendar, AlertCircle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
-export default function Home() {
+function HomeContent() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const searchParams = useSearchParams();
+  const { toast } = useToast();
 
   useEffect(() => {
     checkUser();
   }, []);
+
+  // URL 파라미터에서 에러 메시지 확인
+  useEffect(() => {
+    const error = searchParams.get('error');
+    if (error) {
+      toast({
+        title: '알림',
+        description: decodeURIComponent(error),
+        variant: 'destructive',
+      });
+    }
+  }, [searchParams, toast]);
 
   const checkUser = async () => {
     const currentUser = await getUser();
@@ -267,5 +283,22 @@ export default function Home() {
       </main>
       <Footer />
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex flex-col">
+        <main className="flex-1 flex items-center justify-center px-4">
+          <div className="text-center space-y-8 max-w-2xl">
+            <p className="text-2xl text-gray-600">로딩 중...</p>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    }>
+      <HomeContent />
+    </Suspense>
   );
 }

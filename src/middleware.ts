@@ -44,10 +44,31 @@ export async function middleware(request: NextRequest) {
       await supabase.auth.getSession();
     }
 
-    // Optional: Protect certain routes
-    // if (!user && request.nextUrl.pathname.startsWith('/admin')) {
-    //   return NextResponse.redirect(new URL('/login', request.url));
-    // }
+    // 관리자 페이지 접근 보호 (서버 사이드)
+    if (request.nextUrl.pathname.startsWith('/admin')) {
+      // 로그인하지 않은 경우 로그인 페이지로 리다이렉션
+      if (!user) {
+        console.log('[Middleware] Unauthorized access to admin page, redirecting to login');
+        const loginUrl = new URL('/login', request.url);
+        loginUrl.searchParams.set('error', '로그인이 필요합니다');
+        loginUrl.searchParams.set('redirect', request.nextUrl.pathname);
+        return NextResponse.redirect(loginUrl);
+      }
+
+      // 관리자 권한 확인
+      const { data: isAdmin, error } = await supabase.rpc('is_admin', {
+        check_user_id: user.id,
+      });
+
+      if (error || !isAdmin) {
+        console.log('[Middleware] Non-admin user tried to access admin page:', user.id);
+        const homeUrl = new URL('/', request.url);
+        homeUrl.searchParams.set('error', '관리자만 접근할 수 있습니다');
+        return NextResponse.redirect(homeUrl);
+      }
+
+      console.log('[Middleware] Admin access granted for user:', user.id);
+    }
   } catch (error) {
     console.error('Middleware error:', error);
     // Continue even if there's an error

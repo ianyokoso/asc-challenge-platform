@@ -1,9 +1,9 @@
 /**
- * API Route: 관리자 전용 - 통계 정보 조회
+ * API Route: 관리자 전용 - 사용자 목록 조회
  * 
- * @route GET /api/admin/stats
- * @description 전체 사용자, 오늘의 인증, 탈락 후보자 통계를 조회합니다. (관리자 전용)
- * @returns {{ stats: AdminStats }}
+ * @route GET /api/admin/users
+ * @description 모든 사용자와 트랙 정보를 조회합니다. (관리자 전용)
+ * @returns {{ users: UserWithTracks[] }}
  */
 
 import { NextResponse } from 'next/server';
@@ -48,46 +48,53 @@ export async function GET() {
     });
 
     if (adminError || !isAdmin) {
-      console.error('[Admin Stats API] Access denied:', { userId: user.id, isAdmin, adminError });
+      console.error('[Admin Users API] Access denied:', { userId: user.id, isAdmin, adminError });
       return NextResponse.json(
         { error: 'Forbidden: Admin access required' },
         { status: 403 }
       );
     }
 
-    // Fetch admin statistics
-    // 1. Total active users
-    const { count: totalUsers } = await supabase
+    // Fetch all users with tracks (RLS automatically filters based on admin status)
+    const { data: users, error: usersError } = await supabase
       .from('users')
-      .select('*', { count: 'exact', head: true })
-      .eq('is_active', true);
+      .select(`
+        *,
+        user_tracks(
+          id,
+          track_id,
+          is_active,
+          dropout_warnings,
+          track:tracks(*)
+        )
+      `)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false });
 
-    // 2. Today's certifications
-    const today = new Date().toISOString().split('T')[0];
-    const { count: todayCertifications } = await supabase
-      .from('certifications')
-      .select('*', { count: 'exact', head: true })
-      .eq('certification_date', today);
+    if (usersError) {
+      console.error('[Admin Users API] Error fetching users:', usersError);
+      return NextResponse.json(
+        { error: `Database error: ${usersError.message}` },
+        { status: 500 }
+      );
+    }
 
-    // 3. Dropout candidates (users with warnings)
-    const { count: dropoutCandidates } = await supabase
-      .from('user_tracks')
-      .select('*', { count: 'exact', head: true })
-      .gt('dropout_warnings', 0)
-      .eq('is_active', true);
+    // Filter to only show active tracks
+    const usersWithActiveTracks = (users || []).map(user => ({
+      ...user,
+      user_tracks: user.user_tracks?.filter((ut: any) => ut.is_active) || [],
+    }));
 
     return NextResponse.json({
-      stats: {
-        totalUsers: totalUsers || 0,
-        todayCertifications: todayCertifications || 0,
-        dropoutCandidates: dropoutCandidates || 0,
-      },
+      users: usersWithActiveTracks,
+      count: usersWithActiveTracks.length,
     });
   } catch (error: any) {
-    console.error('[Admin Stats API] Unexpected error:', error);
+    console.error('[Admin Users API] Unexpected error:', error);
     return NextResponse.json(
       { error: `Internal server error: ${error.message}` },
       { status: 500 }
     );
   }
 }
+
