@@ -222,13 +222,13 @@ export default function TrackCertifyPage() {
       <>
         <Navbar />
         <main className="min-h-screen py-12 px-4 bg-gray-50 flex items-center justify-center">
-          <Card className="p-8 text-center">
-            <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-            <h2 className="text-h4 font-heading text-gray-900 mb-2">이 트랙에 등록되지 않았습니다</h2>
-            <p className="text-body text-gray-600 mb-6">
-              {trackType} 트랙을 시작하려면 먼저 등록해주세요.
+          <Card className="p-8 text-center max-w-md">
+            <AlertCircle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
+            <h2 className="text-2xl font-semibold text-gray-900 mb-2">참여 중인 트랙이 없습니다</h2>
+            <p className="text-lg text-gray-600 mb-6">
+              관리자에게 트랙 배정을 요청해주세요.
             </p>
-            <Button onClick={() => router.push('/tracks')}>트랙 선택하기</Button>
+            <Button onClick={() => router.push('/contact-admin')}>관리자 문의하기</Button>
           </Card>
         </main>
         <Footer />

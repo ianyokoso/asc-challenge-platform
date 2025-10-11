@@ -7,9 +7,19 @@
  * - PATCH: 버그 수정 및 작은 개선
  */
 
-export const APP_VERSION = '1.4.4';
+export const APP_VERSION = '1.4.5';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.4.5',
+    date: '2025-01-10',
+    changes: [
+      '트랙 없는 사용자 인증 페이지 메시지 개선',
+      '"참여 중인 트랙이 없습니다" 안내 추가',
+      '관리자 트랙 제외 기능 완성 (관리 버튼 통해 접근)',
+      '트랙 배정/제외 시스템 최종 안정화',
+    ],
+  },
   {
     version: '1.4.4',
     date: '2025-01-10',
