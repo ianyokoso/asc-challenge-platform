@@ -13,7 +13,9 @@ import {
   Loader2,
   AlertCircle,
   Calendar,
-  BarChart3
+  BarChart3,
+  Wifi,
+  WifiOff
 } from 'lucide-react';
 import { CertificationTrackingTable } from '@/components/admin/CertificationTrackingTable';
 import { useAllTracksCertificationData } from '@/hooks/useCertificationTracking';
@@ -142,7 +144,7 @@ function CertificationTrackingPageContent() {
             </Button>
           </div>
 
-          {/* 전체 통계 */}
+          {/* 전체 통계 및 실시간 상태 */}
           {overallStats && (
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
@@ -157,6 +159,15 @@ function CertificationTrackingPageContent() {
                   </span>
                 </div>
               </div>
+
+              {/* 실시간 업데이트 상태 표시 */}
+              <Badge 
+                variant="outline" 
+                className="flex items-center gap-1.5 bg-green-50 text-green-700 border-green-200"
+              >
+                <Wifi className="h-3.5 w-3.5" />
+                <span className="text-xs">실시간 연결됨</span>
+              </Badge>
               
               <Button
                 variant="outline"
