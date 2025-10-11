@@ -18,7 +18,6 @@ export async function GET(request: Request) {
 
   if (code) {
     const cookieStore = await cookies();
-    const response = NextResponse.redirect(new URL('/certify', requestUrl.origin));
     
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -30,7 +29,7 @@ export async function GET(request: Request) {
           },
           setAll(cookiesToSet) {
             cookiesToSet.forEach(({ name, value, options }) => {
-              response.cookies.set(name, value, options);
+              cookieStore.set(name, value, options);
             });
           },
         },
@@ -40,12 +39,14 @@ export async function GET(request: Request) {
     const { data, error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
     
     if (sessionError) {
+      console.error('[Auth Callback] ❌ Session exchange failed:', sessionError);
       return NextResponse.redirect(
         new URL(`/login?error=${encodeURIComponent(sessionError.message)}`, requestUrl.origin)
       );
     }
 
     if (data.session && data.user) {
+      console.log('[Auth Callback] ✅ Session created for user:', data.user.id);
       
       // Sync user profile to database
       try {
@@ -61,12 +62,13 @@ export async function GET(request: Request) {
         };
 
         await supabase.from('users').upsert(profileData);
+        console.log('[Auth Callback] ✅ User profile synced');
       } catch (error) {
-        console.error('Failed to sync user profile:', error);
+        console.error('[Auth Callback] ⚠️ Failed to sync user profile:', error);
       }
       
-      return response;
-    } else {
+      // Redirect to intermediate success page to ensure session is propagated
+      return NextResponse.redirect(new URL('/auth/success', requestUrl.origin));
     }
   }
 
