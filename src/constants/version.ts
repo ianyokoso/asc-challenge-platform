@@ -7,9 +7,19 @@
  * - PATCH: 버그 수정 및 작은 개선
  */
 
-export const APP_VERSION = '1.5.3';
+export const APP_VERSION = '1.5.4';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.5.4',
+    date: '2025-01-10',
+    changes: [
+      'certifications 테이블 user_track_id NULLABLE로 변경',
+      'certifications 테이블 UPDATE 정책 추가',
+      '트랙 제거 시 인증 기록 보존 가능하도록 개선',
+      'NOT NULL 제약 조건 오류 해결',
+    ],
+  },
   {
     version: '1.5.3',
     date: '2025-01-10',
