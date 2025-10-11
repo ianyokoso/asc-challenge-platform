@@ -16,37 +16,87 @@ import {
 import { getUser } from '@/lib/supabase/client';
 import { useIsAdmin, useAdminStats, useDropoutCandidates } from '@/hooks/useAdmin';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/hooks/use-toast';
 
 export default function AdminDashboardPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const [userId, setUserId] = useState<string | null>(null);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   // Get current user
   useEffect(() => {
     const fetchUser = async () => {
-      const user = await getUser();
-      setUserId(user?.id || null);
+      try {
+        const user = await getUser();
+        setUserId(user?.id || null);
+        setIsCheckingAuth(false);
+        
+        if (!user) {
+          console.log('[AdminDashboard] No user found, redirecting to login');
+          toast({
+            title: '로그인이 필요합니다',
+            description: '관리자 페이지는 로그인 후 이용 가능합니다.',
+            variant: 'destructive',
+          });
+          router.push('/login');
+        }
+      } catch (error) {
+        console.error('[AdminDashboard] Error fetching user:', error);
+        setIsCheckingAuth(false);
+        setUserId(null);
+      }
     };
     fetchUser();
-  }, []);
+  }, [router, toast]);
 
   // Check if user is admin
-  const { data: isAdmin, isLoading: adminLoading } = useIsAdmin(userId || undefined);
+  const { 
+    data: isAdmin, 
+    isLoading: adminLoading,
+    error: adminError 
+  } = useIsAdmin(userId || undefined);
   
   // Fetch admin stats
-  const { data: stats, isLoading: statsLoading } = useAdminStats();
+  const { 
+    data: stats, 
+    isLoading: statsLoading,
+    error: statsError 
+  } = useAdminStats();
   
   // Fetch dropout candidates
-  const { data: dropoutCandidates, isLoading: dropoutLoading } = useDropoutCandidates();
+  const { 
+    data: dropoutCandidates, 
+    isLoading: dropoutLoading,
+    error: dropoutError 
+  } = useDropoutCandidates();
 
-  const isLoading = adminLoading || statsLoading || dropoutLoading;
+  const isLoading = isCheckingAuth || adminLoading || statsLoading || dropoutLoading;
+
+  // Handle admin check errors
+  useEffect(() => {
+    if (adminError) {
+      console.error('[AdminDashboard] Admin check error:', adminError);
+      toast({
+        title: '권한 확인 실패',
+        description: '관리자 권한을 확인하는 중 오류가 발생했습니다.',
+        variant: 'destructive',
+      });
+    }
+  }, [adminError, toast]);
 
   // Redirect if not admin
   useEffect(() => {
-    if (!adminLoading && userId && isAdmin === false) {
+    if (!isCheckingAuth && !adminLoading && userId && isAdmin === false) {
+      console.log('[AdminDashboard] User is not admin, redirecting to home');
+      toast({
+        title: '접근 권한 없음',
+        description: '관리자만 접근할 수 있는 페이지입니다.',
+        variant: 'destructive',
+      });
       router.push('/');
     }
-  }, [isAdmin, adminLoading, userId, router]);
+  }, [isAdmin, adminLoading, userId, isCheckingAuth, router, toast]);
 
   // Not logged in
   if (!userId && !adminLoading) {
