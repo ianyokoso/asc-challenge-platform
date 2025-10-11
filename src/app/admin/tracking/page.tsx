@@ -7,6 +7,7 @@ import { AdminSidebar } from '@/components/layout/admin-sidebar';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -15,7 +16,10 @@ import {
   Calendar,
   BarChart3,
   Wifi,
-  WifiOff
+  Video,
+  FileText,
+  Code,
+  TrendingUp
 } from 'lucide-react';
 import { CertificationTrackingTable } from '@/components/admin/CertificationTrackingTable';
 import { useAllTracksCertificationData } from '@/hooks/useCertificationTracking';
@@ -206,25 +210,123 @@ function CertificationTrackingPageContent() {
           </Card>
         )}
 
-        {/* 트랙별 테이블 */}
+        {/* 트랙별 탭 */}
         {!isLoading && !error && trackData && (
-          <div className="space-y-8">
-            {trackData.length === 0 ? (
-              <Card className="p-12 text-center">
-                <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-body text-gray-600">
-                  활성화된 트랙이 없습니다.
-                </p>
-              </Card>
-            ) : (
-              trackData.map((track) => (
+          <Tabs defaultValue="all" className="w-full">
+            <TabsList className="grid w-full grid-cols-5 mb-6">
+              <TabsTrigger value="all" className="flex items-center gap-2">
+                <BarChart3 className="h-4 w-4" />
+                <span>전체</span>
+              </TabsTrigger>
+              <TabsTrigger value="short-form" className="flex items-center gap-2">
+                <Video className="h-4 w-4" />
+                <span>숏폼 (일일)</span>
+              </TabsTrigger>
+              <TabsTrigger value="long-form" className="flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                <span>롱폼 (주간)</span>
+              </TabsTrigger>
+              <TabsTrigger value="builder" className="flex items-center gap-2">
+                <Code className="h-4 w-4" />
+                <span>빌더 (주간)</span>
+              </TabsTrigger>
+              <TabsTrigger value="sales" className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4" />
+                <span>세일즈 (주간)</span>
+              </TabsTrigger>
+            </TabsList>
+
+            {/* 전체 트랙 */}
+            <TabsContent value="all" className="space-y-8">
+              {trackData.length === 0 ? (
+                <Card className="p-12 text-center">
+                  <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-body text-gray-600">
+                    활성화된 트랙이 없습니다.
+                  </p>
+                </Card>
+              ) : (
+                trackData.map((track) => (
+                  <CertificationTrackingTable
+                    key={track.trackId}
+                    data={track}
+                  />
+                ))
+              )}
+            </TabsContent>
+
+            {/* 숏폼 트랙 (일일) */}
+            <TabsContent value="short-form">
+              {trackData.filter(t => t.trackType === 'short-form').map((track) => (
                 <CertificationTrackingTable
                   key={track.trackId}
                   data={track}
                 />
-              ))
-            )}
-          </div>
+              ))}
+              {trackData.filter(t => t.trackType === 'short-form').length === 0 && (
+                <Card className="p-12 text-center">
+                  <Video className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-body text-gray-600">
+                    숏폼 트랙 참여자가 없습니다.
+                  </p>
+                </Card>
+              )}
+            </TabsContent>
+
+            {/* 롱폼 트랙 (주간) */}
+            <TabsContent value="long-form">
+              {trackData.filter(t => t.trackType === 'long-form').map((track) => (
+                <CertificationTrackingTable
+                  key={track.trackId}
+                  data={track}
+                />
+              ))}
+              {trackData.filter(t => t.trackType === 'long-form').length === 0 && (
+                <Card className="p-12 text-center">
+                  <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-body text-gray-600">
+                    롱폼 트랙 참여자가 없습니다.
+                  </p>
+                </Card>
+              )}
+            </TabsContent>
+
+            {/* 빌더 트랙 (주간) */}
+            <TabsContent value="builder">
+              {trackData.filter(t => t.trackType === 'builder').map((track) => (
+                <CertificationTrackingTable
+                  key={track.trackId}
+                  data={track}
+                />
+              ))}
+              {trackData.filter(t => t.trackType === 'builder').length === 0 && (
+                <Card className="p-12 text-center">
+                  <Code className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-body text-gray-600">
+                    빌더 트랙 참여자가 없습니다.
+                  </p>
+                </Card>
+              )}
+            </TabsContent>
+
+            {/* 세일즈 트랙 (주간) */}
+            <TabsContent value="sales">
+              {trackData.filter(t => t.trackType === 'sales').map((track) => (
+                <CertificationTrackingTable
+                  key={track.trackId}
+                  data={track}
+                />
+              ))}
+              {trackData.filter(t => t.trackType === 'sales').length === 0 && (
+                <Card className="p-12 text-center">
+                  <TrendingUp className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-body text-gray-600">
+                    세일즈 트랙 참여자가 없습니다.
+                  </p>
+                </Card>
+              )}
+            </TabsContent>
+          </Tabs>
         )}
 
         {/* 하단 여백 */}
