@@ -33,6 +33,7 @@ export default function CertifyIndexPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const retryCountRef = useRef(0);
+  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Get current user with retry logic for fresh logins
   useEffect(() => {
@@ -66,7 +67,35 @@ export default function CertifyIndexPage() {
   }, []);
 
   // Fetch user tracks
-  const { data: userTracks, isLoading: tracksLoading } = useUserTracks(userId || undefined);
+  const { data: userTracks, isLoading: tracksLoading, error: tracksError } = useUserTracks(userId || undefined);
+
+  // Timeout for track loading - redirect to home if loading takes too long
+  useEffect(() => {
+    if (userId && tracksLoading) {
+      console.log('[CertifyPage] 🕒 Starting track loading timeout (3s)...');
+      
+      loadingTimeoutRef.current = setTimeout(() => {
+        console.log('[CertifyPage] ⏱️ Track loading timeout reached - redirecting to home');
+        alert('트랙 정보를 불러오는 데 시간이 너무 오래 걸리고 있습니다.\n홈페이지로 이동합니다.');
+        router.push('/');
+      }, 3000); // 3 seconds timeout
+
+      return () => {
+        if (loadingTimeoutRef.current) {
+          clearTimeout(loadingTimeoutRef.current);
+        }
+      };
+    }
+  }, [userId, tracksLoading, router]);
+
+  // Handle track loading error
+  useEffect(() => {
+    if (tracksError) {
+      console.error('[CertifyPage] ❌ Track loading error:', tracksError);
+      alert('트랙 정보를 불러오는 중 오류가 발생했습니다.\n홈페이지로 이동합니다.');
+      router.push('/');
+    }
+  }, [tracksError, router]);
 
   // If user has only one track, auto-redirect
   useEffect(() => {
