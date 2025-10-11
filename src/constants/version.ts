@@ -7,9 +7,19 @@
  * - PATCH: 버그 수정 및 작은 개선
  */
 
-export const APP_VERSION = '1.5.8';
+export const APP_VERSION = '1.5.9';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.5.9',
+    date: '2025-01-10',
+    changes: [
+      'getUser 함수 단순화 (세션에서 직접 사용자 가져오기)',
+      '불필요한 refreshSession 제거로 안정성 개선',
+      '페이지 간 세션 전달 문제 해결',
+      '재시도 로직 최적화 (2회, 500ms)',
+    ],
+  },
   {
     version: '1.5.8',
     date: '2025-01-10',

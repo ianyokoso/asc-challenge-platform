@@ -36,8 +36,8 @@ export default function CertifyIndexPage() {
 
   // Get current user with retry logic for fresh logins
   useEffect(() => {
-    const maxRetries = 5;
-    const retryDelay = 800; // 800ms delay between retries
+    const maxRetries = 2; // Reduced retries
+    const retryDelay = 500; // Faster retry
 
     const fetchUser = async () => {
       console.log(`[CertifyPage] 🔍 Attempting to fetch user (attempt ${retryCountRef.current + 1}/${maxRetries + 1})...`);

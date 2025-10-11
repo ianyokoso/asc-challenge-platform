@@ -40,34 +40,26 @@ export const getUser = async () => {
   try {
     const supabase = createClient();
     
-    // First try to get session to refresh if needed
+    // Get the current session
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     
-    // If no session, try to refresh
-    if (!session && !sessionError) {
-      const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
-      if (refreshError) {
-        console.log('No active session and refresh failed:', refreshError.message);
-        return null;
-      }
-    }
-    
-    // Now get user
-    const { data: { user }, error } = await supabase.auth.getUser();
-    
-    if (error) {
-      // Session missing is not an error in our case - user is just not logged in
-      if (error.message.includes('session_missing') || error.message.includes('Auth session missing')) {
-        return null;
-      }
-      console.error('Get user error:', error);
+    if (sessionError) {
+      console.error('[getUser] Session error:', sessionError);
       return null;
     }
     
-    return user;
+    // If no session, return null immediately
+    if (!session) {
+      console.log('[getUser] No active session found');
+      return null;
+    }
+    
+    // Session exists, return the user from the session
+    console.log('[getUser] ✅ User found from session:', session.user.id);
+    return session.user;
   } catch (error) {
     // Catch any unexpected errors
-    console.error('Unexpected error getting user:', error);
+    console.error('[getUser] Unexpected error:', error);
     return null;
   }
 };
