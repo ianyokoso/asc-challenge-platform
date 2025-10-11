@@ -65,9 +65,10 @@ export function TrackAssignmentDialog({
     setIsAssigning(true);
     try {
       await onSave(selectedTrackIds);
-      onOpenChange(false);
+      onOpenChange(false); // 성공 시에만 다이얼로그 닫기
     } catch (error) {
       console.error('Error saving track assignment:', error);
+      // 에러 발생 시 다이얼로그를 닫지 않고 사용자가 에러를 확인할 수 있도록 함
     } finally {
       setIsAssigning(false);
     }

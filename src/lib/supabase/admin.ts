@@ -48,29 +48,49 @@ export async function assignUserToTracks(
     if (tracksToRemove.length > 0) {
       const userTrackIdsToRemove = tracksToRemove.map(t => t.id);
       
-      console.log('[assignUserToTracks] Updating certifications to NULL for removed tracks...');
-      const { error: certUpdateError } = await supabase
+      console.log('[assignUserToTracks] 🔄 User track IDs to remove:', userTrackIdsToRemove);
+      
+      // 먼저 영향받는 인증 레코드 확인
+      console.log('[assignUserToTracks] 🔍 Checking certifications with these user_track_ids...');
+      const { data: affectedCerts, error: checkError } = await supabase
         .from('certifications')
-        .update({ user_track_id: null })
+        .select('id, user_track_id')
         .in('user_track_id', userTrackIdsToRemove);
+      
+      console.log('[assignUserToTracks] 📋 Affected certifications:', affectedCerts);
+      
+      if (affectedCerts && affectedCerts.length > 0) {
+        console.log('[assignUserToTracks] 🔄 Updating certifications to NULL for removed tracks...');
+        const { data: updatedData, error: certUpdateError } = await supabase
+          .from('certifications')
+          .update({ user_track_id: null })
+          .in('user_track_id', userTrackIdsToRemove)
+          .select();
 
-      if (certUpdateError) {
-        console.error('[assignUserToTracks] Error updating certifications:', certUpdateError);
-        throw new Error(`인증 레코드 업데이트 실패: ${certUpdateError.message}`);
+        if (certUpdateError) {
+          console.error('[assignUserToTracks] ❌ Error updating certifications:', certUpdateError);
+          throw new Error(`인증 레코드 업데이트 실패: ${certUpdateError.message}`);
+        }
+        
+        console.log('[assignUserToTracks] ✅ Updated certifications:', updatedData);
+      } else {
+        console.log('[assignUserToTracks] ℹ️ No certifications to update');
       }
 
-      console.log('[assignUserToTracks] Deleting removed tracks...');
-      const { error: deleteError } = await supabase
+      console.log('[assignUserToTracks] 🗑️ Deleting removed tracks...');
+      const { data: deletedData, error: deleteError } = await supabase
         .from('user_tracks')
         .delete()
-        .in('id', userTrackIdsToRemove);
+        .eq('user_id', userId)
+        .in('id', userTrackIdsToRemove)
+        .select();
 
       if (deleteError) {
-        console.error('[assignUserToTracks] Error deleting tracks:', deleteError);
+        console.error('[assignUserToTracks] ❌ Error deleting tracks:', deleteError);
         throw new Error(`트랙 삭제 실패: ${deleteError.message}`);
       }
 
-      console.log('[assignUserToTracks] Successfully deleted removed tracks');
+      console.log('[assignUserToTracks] ✅ Successfully deleted tracks:', deletedData);
     }
 
     // 4. 새로운 트랙 추가

@@ -7,9 +7,20 @@
  * - PATCH: 버그 수정 및 작은 개선
  */
 
-export const APP_VERSION = '1.5.0';
+export const APP_VERSION = '1.5.1';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.5.1',
+    date: '2025-01-10',
+    changes: [
+      '트랙 배정 로직 디버깅 로그 대폭 강화',
+      '데이터베이스 변경사항 실시간 확인 기능 추가',
+      '인증 레코드 업데이트 확인 로그 추가',
+      '트랙 삭제 시 실제 삭제된 데이터 로깅',
+      '에러 발생 시 다이얼로그 자동 닫힘 방지',
+    ],
+  },
   {
     version: '1.5.0',
     date: '2025-01-10',
