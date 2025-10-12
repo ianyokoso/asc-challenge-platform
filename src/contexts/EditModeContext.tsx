@@ -11,6 +11,8 @@ interface EditModeContextType {
   updateContent: (id: string, value: string) => void;
   clearChanges: () => void;
   hasChanges: boolean;
+  saveHandler: (() => Promise<boolean>) | null;
+  setSaveHandler: (handler: (() => Promise<boolean>) | null) => void;
 }
 
 const EditModeContext = createContext<EditModeContextType | undefined>(undefined);
@@ -18,6 +20,7 @@ const EditModeContext = createContext<EditModeContextType | undefined>(undefined
 export function EditModeProvider({ children }: { children: ReactNode }) {
   const [isEditMode, setIsEditMode] = useState(false);
   const [pendingChanges, setPendingChanges] = useState<Map<string, string>>(new Map());
+  const [saveHandler, setSaveHandler] = useState<(() => Promise<boolean>) | null>(null);
 
   const enableEditMode = () => setIsEditMode(true);
   const disableEditMode = () => {
@@ -49,6 +52,8 @@ export function EditModeProvider({ children }: { children: ReactNode }) {
         updateContent,
         clearChanges,
         hasChanges,
+        saveHandler,
+        setSaveHandler,
       }}
     >
       {children}

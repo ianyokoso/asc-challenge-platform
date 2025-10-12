@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { AdminSidebar } from '@/components/layout/admin-sidebar';
@@ -22,6 +22,7 @@ import { Trash2, AlertTriangle, Database, CheckCircle, RotateCcw } from 'lucide-
 import { useToast } from '@/hooks/use-toast';
 import { EditableText } from '@/components/EditableText';
 import { usePageContents } from '@/hooks/usePageContents';
+import { useEditMode } from '@/contexts/EditModeContext';
 
 /**
  * 관리자 전용 - 인증 기록 관리 페이지
@@ -35,7 +36,18 @@ import { usePageContents } from '@/hooks/usePageContents';
 function CertificationManagementPageContent() {
   const { toast } = useToast();
   const today = format(new Date(), 'yyyy-MM-dd');
-  const { getContentByKey, getValueByKey } = usePageContents('/admin/certifications');
+  const { getContentByKey, getValueByKey, saveContents } = usePageContents('/admin/certifications');
+  const { pendingChanges, setSaveHandler } = useEditMode();
+
+  // 저장 핸들러 등록
+  useEffect(() => {
+    setSaveHandler(() => async () => {
+      return await saveContents(pendingChanges);
+    });
+
+    // cleanup
+    return () => setSaveHandler(null);
+  }, [pendingChanges, saveContents, setSaveHandler]);
 
   // 일괄 삭제
   const [bulkDeleteDate, setBulkDeleteDate] = useState(today);

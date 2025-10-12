@@ -2,8 +2,6 @@
 
 import { Button } from '@/components/ui/button';
 import { useEditMode } from '@/contexts/EditModeContext';
-import { usePageContents } from '@/hooks/usePageContents';
-import { usePathname } from 'next/navigation';
 import { Edit3, Save, X } from 'lucide-react';
 import {
   Dialog,
@@ -16,17 +14,29 @@ import {
 import { useState } from 'react';
 
 export function EditModeToggle() {
-  const pathname = usePathname();
-  const { isEditMode, toggleEditMode, disableEditMode, pendingChanges, clearChanges, hasChanges } = useEditMode();
-  const { saveContents, saving } = usePageContents(pathname);
+  const { 
+    isEditMode, 
+    toggleEditMode, 
+    disableEditMode, 
+    pendingChanges, 
+    clearChanges, 
+    hasChanges,
+    saveHandler 
+  } = useEditMode();
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = async () => {
-    if (!hasChanges) return;
+    if (!hasChanges || !saveHandler) return;
 
-    const success = await saveContents(pendingChanges);
-    if (success) {
-      disableEditMode();
+    setIsSaving(true);
+    try {
+      const success = await saveHandler();
+      if (success) {
+        disableEditMode();
+      }
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -43,6 +53,11 @@ export function EditModeToggle() {
     disableEditMode();
     setIsCancelDialogOpen(false);
   };
+
+  // 저장 핸들러가 없으면 버튼 숨김 (페이지에서 EditableText를 사용하지 않는 경우)
+  if (!saveHandler) {
+    return null;
+  }
 
   if (!isEditMode) {
     return (
@@ -68,11 +83,11 @@ export function EditModeToggle() {
         
         <Button
           onClick={handleSave}
-          disabled={!hasChanges || saving}
+          disabled={!hasChanges || isSaving}
           size="sm"
           className="gap-2"
         >
-          {saving ? (
+          {isSaving ? (
             <>
               <span className="animate-spin">⏳</span>
               저장 중...
@@ -87,7 +102,7 @@ export function EditModeToggle() {
 
         <Button
           onClick={handleCancel}
-          disabled={saving}
+          disabled={isSaving}
           variant="outline"
           size="sm"
           className="gap-2"

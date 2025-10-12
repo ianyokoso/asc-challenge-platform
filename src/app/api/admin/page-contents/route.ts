@@ -45,9 +45,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // 데이터가 없을 때도 빈 배열로 정상 응답
     return NextResponse.json({
       success: true,
-      data,
+      data: data || [],
     });
 
   } catch (error) {
