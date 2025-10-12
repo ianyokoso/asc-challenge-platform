@@ -22,6 +22,7 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { CertificationTrackingTable } from '@/components/admin/CertificationTrackingTable';
+import { CertificationSummaryTable } from '@/components/admin/CertificationSummaryTable';
 import { useAllTracksCertificationData } from '@/hooks/useCertificationTracking';
 import { AdminPageGuard } from '@/components/guards/AdminPageGuard';
 
@@ -253,8 +254,8 @@ function CertificationTrackingPageContent() {
               </TabsTrigger>
             </TabsList>
 
-            {/* 전체 트랙 */}
-            <TabsContent value="all" className="space-y-8">
+            {/* 전체 트랙 - 요약 뷰 */}
+            <TabsContent value="all" className="space-y-6">
               {trackData.length === 0 ? (
                 <Card className="p-12 text-center">
                   <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -263,24 +264,29 @@ function CertificationTrackingPageContent() {
                   </p>
                 </Card>
               ) : (
-                trackData.map((track) => (
-                  <CertificationTrackingTable
-                    key={track.trackId}
-                    data={track}
-                  />
-                ))
+                <>
+                  <div className="mb-4">
+                    <h2 className="text-h3 font-heading text-gray-900">
+                      전체 현황 요약
+                    </h2>
+                    <p className="text-body text-gray-600 mt-1">
+                      모든 트랙의 멤버별 이행/미이행 현황을 한눈에 확인하세요
+                    </p>
+                  </div>
+                  <CertificationSummaryTable data={trackData} />
+                </>
               )}
             </TabsContent>
 
             {/* 숏폼 트랙 (일일) */}
             <TabsContent value="short-form">
-              {trackData.filter(t => t.trackType === 'short-form').map((track) => (
+              {trackData.filter(t => t.trackType === 'shortform' || t.trackType === 'short-form').map((track) => (
                 <CertificationTrackingTable
                   key={track.trackId}
                   data={track}
                 />
               ))}
-              {trackData.filter(t => t.trackType === 'short-form').length === 0 && (
+              {trackData.filter(t => t.trackType === 'shortform' || t.trackType === 'short-form').length === 0 && (
                 <Card className="p-12 text-center">
                   <Video className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <p className="text-body text-gray-600">
@@ -292,13 +298,13 @@ function CertificationTrackingPageContent() {
 
             {/* 롱폼 트랙 (주간) */}
             <TabsContent value="long-form">
-              {trackData.filter(t => t.trackType === 'long-form').map((track) => (
+              {trackData.filter(t => t.trackType === 'longform' || t.trackType === 'long-form').map((track) => (
                 <CertificationTrackingTable
                   key={track.trackId}
                   data={track}
                 />
               ))}
-              {trackData.filter(t => t.trackType === 'long-form').length === 0 && (
+              {trackData.filter(t => t.trackType === 'longform' || t.trackType === 'long-form').length === 0 && (
                 <Card className="p-12 text-center">
                   <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <p className="text-body text-gray-600">
