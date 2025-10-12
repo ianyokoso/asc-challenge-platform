@@ -91,3 +91,35 @@ export async function requireAdminForAction() {
   return user;
 }
 
+/**
+ * API 라우트에서 관리자 권한을 확인하고 이메일을 반환하는 헬퍼
+ * 
+ * @throws {Error} 권한이 없거나 인증되지 않은 경우
+ * @returns {Promise<string>} 관리자 이메일
+ * 
+ * @example
+ * ```typescript
+ * export async function POST(request: NextRequest) {
+ *   const adminEmail = await verifyAdminUser(request);
+ *   // 관리자 전용 로직...
+ * }
+ * ```
+ */
+export async function verifyAdminUser(request: NextRequest): Promise<string> {
+  const { isAdmin, user, error } = await checkAdminPermission();
+  
+  if (!user || !user.email) {
+    throw new Error('Unauthorized: User not authenticated');
+  }
+  
+  if (!isAdmin) {
+    throw new Error('Forbidden: Admin access required');
+  }
+  
+  if (error) {
+    throw new Error('Internal error: Failed to verify admin permission');
+  }
+  
+  return user.email;
+}
+
