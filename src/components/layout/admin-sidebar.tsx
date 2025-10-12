@@ -13,6 +13,7 @@ import {
   Database,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { EditModeToggle } from '@/components/admin/EditModeToggle';
 
 const navigation = [
   {
@@ -80,6 +81,11 @@ export function AdminSidebar() {
           );
         })}
       </nav>
+
+      {/* Edit Mode Toggle */}
+      <div className="p-4 border-t border-gray-200">
+        <EditModeToggle />
+      </div>
 
       {/* Back to User Page */}
       <div className="p-4 border-t border-gray-200">

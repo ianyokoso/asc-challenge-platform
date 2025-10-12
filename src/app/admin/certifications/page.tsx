@@ -20,6 +20,8 @@ import {
 import { AdminPageGuard } from '@/components/guards/AdminPageGuard';
 import { Trash2, AlertTriangle, Database, CheckCircle, RotateCcw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { EditableText } from '@/components/EditableText';
+import { usePageContents } from '@/hooks/usePageContents';
 
 /**
  * 관리자 전용 - 인증 기록 관리 페이지
@@ -33,6 +35,7 @@ import { useToast } from '@/hooks/use-toast';
 function CertificationManagementPageContent() {
   const { toast } = useToast();
   const today = format(new Date(), 'yyyy-MM-dd');
+  const { getContentByKey, getValueByKey } = usePageContents('/admin/certifications');
 
   // 일괄 삭제
   const [bulkDeleteDate, setBulkDeleteDate] = useState(today);
@@ -157,12 +160,18 @@ function CertificationManagementPageContent() {
       <main className="flex-1 p-8">
         {/* 페이지 헤더 */}
         <div className="mb-8">
-          <h1 className="text-h2 font-heading text-gray-900 mb-2">
-            인증 기록 관리
-          </h1>
-          <p className="text-body-lg text-gray-600">
-            인증 기록을 삭제하고 초기화할 수 있습니다. 모든 삭제는 자동으로 백업됩니다.
-          </p>
+          <EditableText
+            contentId={getContentByKey('page-title')?.id || ''}
+            defaultValue={getValueByKey('page-title', '인증 기록 관리')}
+            as="h1"
+            className="text-h2 font-heading text-gray-900 mb-2"
+          />
+          <EditableText
+            contentId={getContentByKey('page-description')?.id || ''}
+            defaultValue={getValueByKey('page-description', '인증 기록을 삭제하고 초기화할 수 있습니다. 모든 삭제는 자동으로 백업됩니다.')}
+            as="p"
+            className="text-body-lg text-gray-600"
+          />
         </div>
 
         {/* 경고 메시지 */}
@@ -171,9 +180,12 @@ function CertificationManagementPageContent() {
             <div className="flex items-start gap-3">
               <AlertTriangle className="h-6 w-6 text-yellow-600 mt-0.5" />
               <div>
-                <h3 className="text-h4 font-heading text-gray-900 mb-2">
-                  주의사항
-                </h3>
+                <EditableText
+                  contentId={getContentByKey('warning-title')?.id || ''}
+                  defaultValue={getValueByKey('warning-title', '주의사항')}
+                  as="h3"
+                  className="text-h4 font-heading text-gray-900 mb-2"
+                />
                 <ul className="text-body text-gray-700 space-y-1 list-disc list-inside">
                   <li>삭제된 기록은 백업 테이블에 자동으로 저장됩니다.</li>
                   <li>백업은 복구를 위해 보관되며, 별도로 삭제하지 않는 한 영구 보존됩니다.</li>
@@ -191,12 +203,18 @@ function CertificationManagementPageContent() {
               <div className="flex items-start gap-3 mb-6">
                 <Trash2 className="h-6 w-6 text-red-600 mt-0.5" />
                 <div>
-                  <h2 className="text-h3 font-heading text-gray-900 mb-1">
-                    기준 날짜 이전 일괄 삭제
-                  </h2>
-                  <p className="text-body text-gray-600">
-                    지정한 날짜 이전의 모든 인증 기록을 삭제합니다.
-                  </p>
+                  <EditableText
+                    contentId={getContentByKey('bulk-delete-title')?.id || ''}
+                    defaultValue={getValueByKey('bulk-delete-title', '기준 날짜 이전 일괄 삭제')}
+                    as="h2"
+                    className="text-h3 font-heading text-gray-900 mb-1"
+                  />
+                  <EditableText
+                    contentId={getContentByKey('bulk-delete-description')?.id || ''}
+                    defaultValue={getValueByKey('bulk-delete-description', '지정한 날짜 이전의 모든 인증 기록을 삭제합니다.')}
+                    as="p"
+                    className="text-body text-gray-600"
+                  />
                 </div>
               </div>
 
@@ -254,12 +272,18 @@ function CertificationManagementPageContent() {
               <div className="flex items-start gap-3 mb-6">
                 <RotateCcw className="h-6 w-6 text-orange-600 mt-0.5" />
                 <div>
-                  <h2 className="text-h3 font-heading text-gray-900 mb-1">
-                    전체 리셋 (인증 삭제 + 참여자 대기 전환)
-                  </h2>
-                  <p className="text-body text-gray-600">
-                    지정한 날짜 이전의 인증 기록을 삭제하고, 모든 참여자를 대기 상태로 전환합니다.
-                  </p>
+                  <EditableText
+                    contentId={getContentByKey('reset-title')?.id || ''}
+                    defaultValue={getValueByKey('reset-title', '전체 리셋 (인증 삭제 + 참여자 대기 전환)')}
+                    as="h2"
+                    className="text-h3 font-heading text-gray-900 mb-1"
+                  />
+                  <EditableText
+                    contentId={getContentByKey('reset-description')?.id || ''}
+                    defaultValue={getValueByKey('reset-description', '지정한 날짜 이전의 인증 기록을 삭제하고, 모든 참여자를 대기 상태로 전환합니다.')}
+                    as="p"
+                    className="text-body text-gray-600"
+                  />
                 </div>
               </div>
 
@@ -327,9 +351,12 @@ function CertificationManagementPageContent() {
               <div className="flex items-start gap-3">
                 <Database className="h-6 w-6 text-blue-600 mt-0.5" />
                 <div>
-                  <h3 className="text-h4 font-heading text-gray-900 mb-2">
-                    자동 백업 시스템
-                  </h3>
+                  <EditableText
+                    contentId={getContentByKey('backup-title')?.id || ''}
+                    defaultValue={getValueByKey('backup-title', '자동 백업 시스템')}
+                    as="h3"
+                    className="text-h4 font-heading text-gray-900 mb-2"
+                  />
                   <div className="text-body text-gray-700 space-y-2">
                     <p>
                       모든 삭제 작업은 자동으로 <code className="px-2 py-0.5 bg-white rounded text-sm">certifications_backup</code> 테이블에 백업됩니다.
