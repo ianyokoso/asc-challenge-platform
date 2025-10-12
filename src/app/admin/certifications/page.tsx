@@ -41,7 +41,7 @@ function CertificationManagementPageContent() {
 
   // 저장 핸들러 등록
   useEffect(() => {
-    setSaveHandler(() => async () => {
+    setSaveHandler(async () => {
       return await saveContents(pendingChanges);
     });
 
