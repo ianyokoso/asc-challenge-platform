@@ -20,7 +20,7 @@ const EditModeContext = createContext<EditModeContextType | undefined>(undefined
 export function EditModeProvider({ children }: { children: ReactNode }) {
   const [isEditMode, setIsEditMode] = useState(false);
   const [pendingChanges, setPendingChanges] = useState<Map<string, string>>(new Map());
-  const [saveHandler, setSaveHandler] = useState<(() => Promise<boolean>) | null>(null);
+  const [saveHandler, setSaveHandlerState] = useState<(() => Promise<boolean>) | null>(null);
 
   const enableEditMode = () => setIsEditMode(true);
   const disableEditMode = () => {
@@ -40,6 +40,11 @@ export function EditModeProvider({ children }: { children: ReactNode }) {
   const clearChanges = () => setPendingChanges(new Map());
 
   const hasChanges = pendingChanges.size > 0;
+
+  // 함수를 값으로 저장하기 위한 커스텀 setter
+  const setSaveHandler = (handler: (() => Promise<boolean>) | null) => {
+    setSaveHandlerState(() => handler);
+  };
 
   return (
     <EditModeContext.Provider

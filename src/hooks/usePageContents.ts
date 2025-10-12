@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
 interface PageContent {
@@ -47,8 +47,17 @@ export function usePageContents(pagePath: string) {
   }, [pagePath, toast]);
 
   // 콘텐츠 저장
-  const saveContents = async (changes: Map<string, string>) => {
+  const saveContents = useCallback(async (changes: Map<string, string>) => {
     try {
+      // 변경사항이 없으면 조기 반환
+      if (changes.size === 0) {
+        toast({
+          title: '변경사항 없음',
+          description: '저장할 내용이 없습니다.',
+        });
+        return true;
+      }
+
       setSaving(true);
 
       const updates = Array.from(changes.entries()).map(([id, content_value]) => ({
@@ -95,7 +104,7 @@ export function usePageContents(pagePath: string) {
     } finally {
       setSaving(false);
     }
-  };
+  }, [toast]);
 
   // content_key로 콘텐츠 찾기
   const getContentByKey = (key: string): PageContent | undefined => {
