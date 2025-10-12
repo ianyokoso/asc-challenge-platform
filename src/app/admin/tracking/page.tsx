@@ -43,7 +43,8 @@ function CertificationTrackingPageContent() {
     data: trackData, 
     isLoading, 
     error,
-    refetch 
+    refetch,
+    realtimeStatus 
   } = useAllTracksCertificationData(currentYear, currentMonth);
 
   // 이전 달로 이동
@@ -167,10 +168,26 @@ function CertificationTrackingPageContent() {
               {/* 실시간 업데이트 상태 표시 */}
               <Badge 
                 variant="outline" 
-                className="flex items-center gap-1.5 bg-green-50 text-green-700 border-green-200"
+                className={`flex items-center gap-1.5 ${
+                  realtimeStatus === 'connected' 
+                    ? 'bg-green-50 text-green-700 border-green-200' 
+                    : realtimeStatus === 'connecting'
+                    ? 'bg-yellow-50 text-yellow-700 border-yellow-200'
+                    : realtimeStatus === 'error'
+                    ? 'bg-red-50 text-red-700 border-red-200'
+                    : 'bg-gray-50 text-gray-700 border-gray-200'
+                }`}
               >
-                <Wifi className="h-3.5 w-3.5" />
-                <span className="text-xs">실시간 연결됨</span>
+                {realtimeStatus === 'connected' && <Wifi className="h-3.5 w-3.5" />}
+                {realtimeStatus === 'connecting' && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                {realtimeStatus === 'error' && <AlertCircle className="h-3.5 w-3.5" />}
+                {realtimeStatus === 'disconnected' && <Wifi className="h-3.5 w-3.5 opacity-50" />}
+                <span className="text-xs">
+                  {realtimeStatus === 'connected' && '실시간 연결됨'}
+                  {realtimeStatus === 'connecting' && '연결 중...'}
+                  {realtimeStatus === 'error' && '연결 오류'}
+                  {realtimeStatus === 'disconnected' && '연결 끊김'}
+                </span>
               </Badge>
               
               <Button

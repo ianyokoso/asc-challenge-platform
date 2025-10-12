@@ -8,9 +8,13 @@ export async function GET(request: Request) {
   const error = requestUrl.searchParams.get('error');
   const errorDescription = requestUrl.searchParams.get('error_description');
 
+  console.log('[Auth Callback] 🔍 Request URL:', requestUrl.href);
+  console.log('[Auth Callback] 🔑 Code:', code ? 'present' : 'missing');
+  console.log('[Auth Callback] 🌐 Origin:', requestUrl.origin);
 
   // Handle OAuth errors
   if (error) {
+    console.error('[Auth Callback] ❌ OAuth error:', error, errorDescription);
     return NextResponse.redirect(
       new URL(`/login?error=${encodeURIComponent(errorDescription || error)}`, requestUrl.origin)
     );
@@ -18,6 +22,8 @@ export async function GET(request: Request) {
 
   if (code) {
     const cookieStore = await cookies();
+    
+    console.log('[Auth Callback] 🍪 Cookies:', cookieStore.getAll().map(c => c.name));
     
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -36,10 +42,19 @@ export async function GET(request: Request) {
       }
     );
     
+    console.log('[Auth Callback] 🔄 Attempting to exchange code for session...');
     const { data, error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
     
     if (sessionError) {
-      console.error('[Auth Callback] ❌ Session exchange failed:', sessionError);
+      console.error('[Auth Callback] ❌ Session exchange failed:', {
+        message: sessionError.message,
+        status: sessionError.status,
+        name: sessionError.name,
+        // @ts-ignore
+        error: sessionError.error,
+        // @ts-ignore
+        error_description: sessionError.error_description,
+      });
       return NextResponse.redirect(
         new URL(`/login?error=${encodeURIComponent(sessionError.message)}`, requestUrl.origin)
       );

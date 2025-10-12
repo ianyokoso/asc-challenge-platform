@@ -95,6 +95,8 @@ export async function getAllTracksCertificationData(
   const supabase = createClient();
   
   try {
+    console.log('[getAllTracksCertificationData] 🚀 Fetching data for:', { year, month });
+    
     // 1. 모든 트랙 정보 가져오기
     const { data: tracks, error: tracksError } = await supabase
       .from('tracks')
@@ -102,13 +104,16 @@ export async function getAllTracksCertificationData(
       .eq('is_active', true);
 
     if (tracksError) {
-      console.error('[getAllTracksCertificationData] Error fetching tracks:', tracksError);
+      console.error('[getAllTracksCertificationData] ❌ Error fetching tracks:', tracksError);
       throw tracksError;
     }
 
     if (!tracks || tracks.length === 0) {
+      console.log('[getAllTracksCertificationData] ⚠️ No active tracks found');
       return [];
     }
+    
+    console.log('[getAllTracksCertificationData] ✅ Found tracks:', tracks.length);
 
     // 2. 각 트랙별로 데이터 처리
     const trackSummaries: TrackCertificationSummary[] = [];
@@ -160,7 +165,9 @@ export async function getAllTracksCertificationData(
         .lte('certification_date', endDate);
 
       if (certificationsError) {
-        console.error(`[getAllTracksCertificationData] Error fetching certifications for ${track.name}:`, certificationsError);
+        console.error(`[getAllTracksCertificationData] ❌ Error fetching certifications for ${track.name}:`, certificationsError);
+      } else {
+        console.log(`[getAllTracksCertificationData] ✅ Fetched ${certifications?.length || 0} certifications for ${track.name}`);
       }
 
       // 사용자별로 인증 데이터 매핑
@@ -181,11 +188,18 @@ export async function getAllTracksCertificationData(
           const cert = userCerts.find(c => c.certification_date === date);
           
           if (cert) {
+            // 상태 판단: submitted 또는 approved는 certified로 표시
+            const certStatus = (cert.status === 'approved' || cert.status === 'submitted') 
+              ? 'certified' 
+              : (cert.status === 'rejected' ? 'missing' : 'pending');
+            
             certificationsByDate[date] = {
-              status: cert.status === 'approved' || cert.status === 'submitted' ? 'certified' : 'pending',
+              status: certStatus,
               url: cert.certification_url,
               submittedAt: cert.submitted_at,
             };
+            
+            console.log(`[getAllTracksCertificationData] 📅 ${user.discord_username} - ${date}: ${cert.status} → ${certStatus}`);
           } else {
             // 오늘 이후 날짜는 'not-required', 이전 날짜는 'missing'
             const today = format(new Date(), 'yyyy-MM-dd');
@@ -221,9 +235,10 @@ export async function getAllTracksCertificationData(
       });
     }
 
+    console.log('[getAllTracksCertificationData] ✅ Successfully processed', trackSummaries.length, 'tracks');
     return trackSummaries;
   } catch (error) {
-    console.error('[getAllTracksCertificationData] Unexpected error:', error);
+    console.error('[getAllTracksCertificationData] ❌ Unexpected error:', error);
     throw error;
   }
 }
@@ -322,8 +337,13 @@ export async function getTrackCertificationData(
         const cert = userCerts.find(c => c.certification_date === date);
         
         if (cert) {
+          // 상태 판단: submitted 또는 approved는 certified로 표시
+          const certStatus = (cert.status === 'approved' || cert.status === 'submitted') 
+            ? 'certified' 
+            : (cert.status === 'rejected' ? 'missing' : 'pending');
+          
           certificationsByDate[date] = {
-            status: cert.status === 'approved' || cert.status === 'submitted' ? 'certified' : 'pending',
+            status: certStatus,
             url: cert.certification_url,
             submittedAt: cert.submitted_at,
           };
