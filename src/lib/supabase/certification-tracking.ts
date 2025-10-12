@@ -8,8 +8,8 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval, isWeekend, getDay 
 
 export interface CertificationTrackingData {
   userId: string;
-  userName: string;
-  userAvatar: string | null;
+  discordUsername: string;
+  discordAvatarUrl: string | null;
   tracks: {
     [trackId: string]: {
       trackName: string;
@@ -34,8 +34,8 @@ export interface TrackCertificationSummary {
   trackType: string;
   participants: {
     userId: string;
-    userName: string;
-    userAvatar: string | null;
+    discordUsername: string;
+    discordAvatarUrl: string | null;
     certifications: {
       [date: string]: {
         status: 'certified' | 'pending' | 'missing' | 'not-required';
@@ -217,8 +217,8 @@ export async function getAllTracksCertificationData(
 
         return {
           userId: user.id,
-          userName: user.discord_username || 'Unknown User',
-          userAvatar: user.discord_avatar_url,
+          discordUsername: user.discord_username || 'Unknown User',
+          discordAvatarUrl: user.discord_avatar_url,
           certifications: certificationsByDate,
           totalCertified,
           totalRequired,
@@ -364,8 +364,8 @@ export async function getTrackCertificationData(
 
       return {
         userId: user.id,
-        userName: user.discord_username || 'Unknown User',
-        userAvatar: user.discord_avatar_url,
+        discordUsername: user.discord_username || 'Unknown User',
+        discordAvatarUrl: user.discord_avatar_url,
         certifications: certificationsByDate,
         totalCertified,
         totalRequired,

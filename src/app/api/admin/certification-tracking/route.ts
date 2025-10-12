@@ -181,8 +181,8 @@ export async function GET(request: NextRequest) {
 
         return {
           userId: user.id,
-          userName: user.discord_username || 'Unknown User',
-          userAvatar: user.discord_avatar_url,
+          discordUsername: user.discord_username || 'Unknown User',
+          discordAvatarUrl: user.discord_avatar_url,
           certifications: certificationsByDate,
           totalCertified,
           totalRequired,

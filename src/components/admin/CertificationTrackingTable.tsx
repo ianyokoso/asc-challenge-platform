@@ -72,7 +72,7 @@ export function CertificationTrackingTable({
       let comparison = 0;
       
       if (sortField === 'name') {
-        comparison = a.userName.localeCompare(b.userName, 'ko');
+        comparison = a.discordUsername.localeCompare(b.discordUsername, 'ko');
       } else if (sortField === 'completion') {
         comparison = a.completionRate - b.completionRate;
       }
@@ -254,20 +254,20 @@ export function CertificationTrackingTable({
                   >
                     <div className="flex items-center gap-3">
                       <Avatar className="h-8 w-8">
-                        {participant.userAvatar ? (
+                        {participant.discordAvatarUrl ? (
                           <img 
-                            src={participant.userAvatar} 
-                            alt={participant.userName}
+                            src={participant.discordAvatarUrl} 
+                            alt={participant.discordUsername}
                             className="h-full w-full object-cover"
                           />
                         ) : (
                           <div className="h-full w-full flex items-center justify-center bg-primary/10 text-primary font-semibold">
-                            {participant.userName.charAt(0).toUpperCase()}
+                            {participant.discordUsername.charAt(0).toUpperCase()}
                           </div>
                         )}
                       </Avatar>
                       <span className="text-body font-medium text-gray-900 truncate">
-                        {participant.userName}
+                        {participant.discordUsername}
                       </span>
                     </div>
                   </td>
