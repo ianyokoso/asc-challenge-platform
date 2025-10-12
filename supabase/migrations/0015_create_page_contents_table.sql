@@ -37,9 +37,9 @@ CREATE POLICY "Admins can update page contents"
   FOR UPDATE
   USING (
     EXISTS (
-      SELECT 1 FROM public.users
-      WHERE users.id = auth.uid()
-      AND users.is_admin = true
+      SELECT 1 FROM public.admin_users
+      WHERE admin_users.user_id = auth.uid()
+      AND admin_users.is_active = true
     )
   );
 
@@ -49,9 +49,9 @@ CREATE POLICY "Admins can insert page contents"
   FOR INSERT
   WITH CHECK (
     EXISTS (
-      SELECT 1 FROM public.users
-      WHERE users.id = auth.uid()
-      AND users.is_admin = true
+      SELECT 1 FROM public.admin_users
+      WHERE admin_users.user_id = auth.uid()
+      AND admin_users.is_active = true
     )
   );
 
@@ -61,9 +61,9 @@ CREATE POLICY "Admins can delete page contents"
   FOR DELETE
   USING (
     EXISTS (
-      SELECT 1 FROM public.users
-      WHERE users.id = auth.uid()
-      AND users.is_admin = true
+      SELECT 1 FROM public.admin_users
+      WHERE admin_users.user_id = auth.uid()
+      AND admin_users.is_active = true
     )
   );
 
