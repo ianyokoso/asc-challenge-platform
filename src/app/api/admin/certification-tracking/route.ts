@@ -13,8 +13,10 @@ function isRequiredDate(date: Date, trackType: string): boolean {
   
   switch (trackType) {
     case 'short-form':
+    case 'shortform':
       return dayOfWeek >= 1 && dayOfWeek <= 5; // 월~금
     case 'long-form':
+    case 'longform':
     case 'builder':
       return dayOfWeek === 0; // 일요일
     case 'sales':
