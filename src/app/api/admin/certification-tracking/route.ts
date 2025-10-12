@@ -151,7 +151,13 @@ export async function GET(request: NextRequest) {
         const certificationsByDate: any = {};
 
         requiredDates.forEach(date => {
-          const cert = userCerts.find(c => c.certification_date === date);
+          // certification_date를 'yyyy-MM-dd' 형식으로 변환하여 비교
+          const cert = userCerts.find(c => {
+            const certDate = typeof c.certification_date === 'string' 
+              ? c.certification_date.split('T')[0]  // ISO 문자열에서 날짜 부분만 추출
+              : format(new Date(c.certification_date), 'yyyy-MM-dd');
+            return certDate === date;
+          });
           
           if (cert) {
             const certStatus = (cert.status === 'approved' || cert.status === 'submitted') 
