@@ -1,14 +1,26 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { format } from 'date-fns';
+import { format, isAfter, isBefore, addDays } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { AdminSidebar } from '@/components/layout/admin-sidebar';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
 import {
   Dialog,
   DialogContent,
@@ -24,12 +36,46 @@ import { EditableText } from '@/components/EditableText';
 import { usePageContents } from '@/hooks/usePageContents';
 import { useEditMode } from '@/contexts/EditModeContext';
 
+// Zod 스키마: 전체 리셋 폼 검증
+const resetFormSchema = z.object({
+  beforeDate: z.string().min(1, '기준 날짜를 선택해주세요'),
+  seasonStartDate: z.string().min(1, '다음 기수 시작일을 선택해주세요'),
+  seasonEndDate: z.string().min(1, '다음 기수 종료일을 선택해주세요'),
+  reason: z.string().optional(),
+}).refine((data) => {
+  // 시작일이 종료일보다 이전이어야 함
+  const start = new Date(data.seasonStartDate);
+  const end = new Date(data.seasonEndDate);
+  return isBefore(start, end);
+}, {
+  message: '시작일은 종료일보다 이전이어야 합니다',
+  path: ['seasonEndDate'],
+}).refine((data) => {
+  // 시작일이 미래 날짜여야 함
+  const start = new Date(data.seasonStartDate);
+  const tomorrow = addDays(new Date(), 1);
+  return isAfter(start, new Date()) || start.toDateString() === tomorrow.toDateString();
+}, {
+  message: '시작일은 오늘 이후여야 합니다',
+  path: ['seasonStartDate'],
+}).refine((data) => {
+  // 종료일이 미래 날짜여야 함
+  const end = new Date(data.seasonEndDate);
+  const tomorrow = addDays(new Date(), 1);
+  return isAfter(end, new Date()) || end.toDateString() === tomorrow.toDateString();
+}, {
+  message: '종료일은 오늘 이후여야 합니다',
+  path: ['seasonEndDate'],
+});
+
+type ResetFormValues = z.infer<typeof resetFormSchema>;
+
 /**
  * 관리자 전용 - 인증 기록 관리 페이지
  * 
  * 기능:
  * - 기준 날짜 이전 일괄 삭제
- * - 전체 리셋 (인증 삭제 + 참여자 대기 전환)
+ * - 전체 리셋 (인증 삭제 + 참여자 대기 전환) + 기수 시작/종료일 설정
  * - 백업 자동 생성
  * - 삭제 확인 모달
  */
@@ -56,11 +102,19 @@ function CertificationManagementPageContent() {
   const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
-  // 전체 리셋
-  const [resetDate, setResetDate] = useState(today);
-  const [resetReason, setResetReason] = useState('');
+  // 전체 리셋 (React Hook Form 사용)
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  
+  const resetForm = useForm<ResetFormValues>({
+    resolver: zodResolver(resetFormSchema),
+    defaultValues: {
+      beforeDate: today,
+      seasonStartDate: format(addDays(new Date(), 1), 'yyyy-MM-dd'),
+      seasonEndDate: format(addDays(new Date(), 30), 'yyyy-MM-dd'),
+      reason: '',
+    },
+  });
 
   // 일괄 삭제 확인 모달 열기
   const handleOpenBulkDeleteModal = () => {
@@ -115,12 +169,13 @@ function CertificationManagementPageContent() {
   };
 
   // 전체 리셋 확인 모달 열기
-  const handleOpenResetModal = () => {
-    if (!resetDate) {
+  const handleOpenResetModal = async () => {
+    const isValid = await resetForm.trigger();
+    if (!isValid) {
       toast({
         variant: 'destructive',
-        title: '날짜를 입력해주세요',
-        description: '리셋 기준 날짜를 선택해야 합니다.',
+        title: '입력값을 확인해주세요',
+        description: '모든 필수 항목을 올바르게 입력해주세요.',
       });
       return;
     }
@@ -128,32 +183,34 @@ function CertificationManagementPageContent() {
   };
 
   // 전체 리셋 실행
-  const handleReset = async () => {
+  const handleReset = async (data: ResetFormValues) => {
     setIsResetting(true);
     try {
       const response = await fetch('/api/admin/certifications/reset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          beforeDate: resetDate,
-          reason: resetReason || undefined,
+          beforeDate: data.beforeDate,
+          seasonStartDate: data.seasonStartDate,
+          seasonEndDate: data.seasonEndDate,
+          reason: data.reason || undefined,
         }),
       });
 
-      const data = await response.json();
+      const responseData = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to reset');
+        throw new Error(responseData.error || 'Failed to reset');
       }
 
       toast({
         title: '전체 리셋 완료 ✅',
-        description: `${data.data.certificationsDeleted}개의 인증 기록 삭제 및 ${data.data.participantsUpdated}명의 참여자 상태가 대기로 전환되었습니다.`,
+        description: `${responseData.data.certificationsDeleted}개의 인증 기록 삭제 및 ${responseData.data.participantsUpdated}명의 참여자 상태가 대기로 전환되었습니다. 다음 기수: ${format(new Date(data.seasonStartDate), 'yyyy.MM.dd', { locale: ko })} ~ ${format(new Date(data.seasonEndDate), 'yyyy.MM.dd', { locale: ko })}`,
       });
 
-      // 모달 닫기 및 초기화
+      // 모달 닫기 및 폼 초기화
       setIsResetModalOpen(false);
-      setResetReason('');
+      resetForm.reset();
     } catch (error) {
       console.error('Reset error:', error);
       toast({
@@ -300,61 +357,113 @@ function CertificationManagementPageContent() {
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <div className="bg-white border border-orange-200 rounded-md p-4 mb-4">
-                  <p className="text-body-sm font-medium text-gray-900 mb-2">
-                    ⚠️ 리셋 실행 시 수행되는 작업:
-                  </p>
-                  <ul className="text-body-sm text-gray-700 space-y-1 list-disc list-inside">
-                    <li>기준 날짜 이전의 모든 인증 기록 삭제 (백업됨)</li>
-                    <li>모든 참여자의 트랙 상태를 대기(is_active = false)로 변경</li>
-                    <li>챌린지를 완전히 초기화하고 새로 시작할 때 사용</li>
-                  </ul>
-                </div>
-
-                <div>
-                  <Label htmlFor="reset-date" className="text-body font-medium text-gray-900">
-                    기준 날짜 (이 날짜 이전 삭제)
-                  </Label>
-                  <Input
-                    id="reset-date"
-                    type="date"
-                    value={resetDate}
-                    onChange={(e) => setResetDate(e.target.value)}
-                    max={today}
-                    className="mt-1.5"
-                  />
-                  <p className="text-body-sm text-gray-500 mt-1">
-                    {resetDate && (
-                      <>
-                        {format(new Date(resetDate), 'yyyy년 M월 d일', { locale: ko })} 이전의 기록이 삭제되고, 모든 참여자가 대기 상태로 전환됩니다.
-                      </>
-                    )}
-                  </p>
-                </div>
-
-                <div>
-                  <Label htmlFor="reset-reason" className="text-body font-medium text-gray-900">
-                    리셋 사유 (선택)
-                  </Label>
-                  <Textarea
-                    id="reset-reason"
-                    placeholder="예: 새 시즌 시작으로 인한 전체 초기화"
-                    value={resetReason}
-                    onChange={(e) => setResetReason(e.target.value)}
-                    rows={3}
-                    className="mt-1.5"
-                  />
-                </div>
-
-                <Button
-                  onClick={handleOpenResetModal}
-                  className="w-full sm:w-auto bg-orange-600 hover:bg-orange-700 text-white"
-                >
-                  <RotateCcw className="h-4 w-4 mr-2" />
-                  전체 리셋 실행
-                </Button>
+              <div className="bg-white border border-orange-200 rounded-md p-4 mb-4">
+                <p className="text-body-sm font-medium text-gray-900 mb-2">
+                  ⚠️ 리셋 실행 시 수행되는 작업:
+                </p>
+                <ul className="text-body-sm text-gray-700 space-y-1 list-disc list-inside">
+                  <li>기준 날짜 이전의 모든 인증 기록 삭제 (백업됨)</li>
+                  <li>모든 참여자의 트랙 상태를 대기(is_active = false)로 변경</li>
+                  <li>다음 기수 시작일/종료일 설정</li>
+                  <li>챌린지를 완전히 초기화하고 새로 시작할 때 사용</li>
+                </ul>
               </div>
+
+              <Form {...resetForm}>
+                <form className="space-y-4">
+                  <FormField
+                    control={resetForm.control}
+                    name="beforeDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-body font-medium text-gray-900">
+                          기준 날짜 (이 날짜 이전 삭제)
+                        </FormLabel>
+                        <FormControl>
+                          <Input type="date" max={today} {...field} />
+                        </FormControl>
+                        <FormDescription className="text-body-sm text-gray-500">
+                          {field.value && (
+                            <>
+                              {format(new Date(field.value), 'yyyy년 M월 d일', { locale: ko })} 이전의 기록이 삭제됩니다.
+                            </>
+                          )}
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={resetForm.control}
+                      name="seasonStartDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-body font-medium text-gray-900">
+                            다음 기수 시작일 *
+                          </FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} />
+                          </FormControl>
+                          <FormDescription className="text-body-sm text-gray-500">
+                            다음 챌린지가 시작되는 날짜
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={resetForm.control}
+                      name="seasonEndDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-body font-medium text-gray-900">
+                            다음 기수 종료일 *
+                          </FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} />
+                          </FormControl>
+                          <FormDescription className="text-body-sm text-gray-500">
+                            다음 챌린지가 종료되는 날짜
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <FormField
+                    control={resetForm.control}
+                    name="reason"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-body font-medium text-gray-900">
+                          리셋 사유 (선택)
+                        </FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="예: 2기 시작으로 인한 전체 초기화"
+                            rows={3}
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <Button
+                    type="button"
+                    onClick={handleOpenResetModal}
+                    className="w-full sm:w-auto bg-orange-600 hover:bg-orange-700 text-white"
+                  >
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    전체 리셋 실행
+                  </Button>
+                </form>
+              </Form>
             </div>
           </Card>
 
@@ -458,23 +567,39 @@ function CertificationManagementPageContent() {
               </DialogTitle>
               <DialogDescription className="space-y-3 pt-2">
                 <p>
-                  <strong>{format(new Date(resetDate), 'yyyy년 M월 d일', { locale: ko })} 이전</strong>의 
+                  <strong>{format(new Date(resetForm.getValues('beforeDate')), 'yyyy년 M월 d일', { locale: ko })} 이전</strong>의 
                   인증 기록을 삭제하고, <strong>모든 참여자를 대기 상태로 전환</strong>하시겠습니까?
                 </p>
-                {resetReason && (
+                
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-3 space-y-2">
+                  <p className="text-sm font-medium text-blue-800">📅 다음 기수 일정:</p>
+                  <div className="text-sm text-blue-700 space-y-1">
+                    <p>
+                      • 시작일: <strong>{format(new Date(resetForm.getValues('seasonStartDate')), 'yyyy년 M월 d일', { locale: ko })}</strong>
+                    </p>
+                    <p>
+                      • 종료일: <strong>{format(new Date(resetForm.getValues('seasonEndDate')), 'yyyy년 M월 d일', { locale: ko })}</strong>
+                    </p>
+                  </div>
+                </div>
+
+                {resetForm.getValues('reason') && (
                   <div className="bg-gray-50 p-3 rounded-md">
                     <p className="text-sm font-medium text-gray-700">리셋 사유:</p>
-                    <p className="text-sm text-gray-600 mt-1">{resetReason}</p>
+                    <p className="text-sm text-gray-600 mt-1">{resetForm.getValues('reason')}</p>
                   </div>
                 )}
+                
                 <div className="bg-orange-50 border border-orange-200 rounded-md p-3 space-y-2">
                   <p className="text-sm font-medium text-orange-800">실행 내용:</p>
                   <ul className="text-sm text-orange-700 space-y-1 list-disc list-inside">
                     <li>인증 기록 삭제 (백업됨)</li>
                     <li>모든 참여자를 대기 상태로 전환</li>
+                    <li>다음 기수 시작/종료일 설정</li>
                     <li>챌린지 완전 초기화</li>
                   </ul>
                 </div>
+                
                 <div className="bg-red-50 border border-red-200 rounded-md p-3 space-y-2">
                   <p className="text-sm font-medium text-red-800">⚠️ 주의사항:</p>
                   <ul className="text-sm text-red-700 space-y-1 list-disc list-inside">
@@ -495,7 +620,7 @@ function CertificationManagementPageContent() {
               </Button>
               <Button
                 className="bg-orange-600 hover:bg-orange-700 text-white"
-                onClick={handleReset}
+                onClick={resetForm.handleSubmit(handleReset)}
                 disabled={isResetting}
               >
                 {isResetting ? (

@@ -7,10 +7,12 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 /**
  * POST /api/admin/certifications/reset
- * 전체 리셋: 기준 날짜 이전 인증 기록 삭제 + 모든 참여자를 대기 상태로 전환
+ * 전체 리셋: 기준 날짜 이전 인증 기록 삭제 + 모든 참여자를 대기 상태로 전환 + 다음 기수 설정
  * 
  * Request Body:
  * - beforeDate: string (yyyy-MM-dd) - 이 날짜 이전의 인증 기록을 삭제
+ * - seasonStartDate: string (yyyy-MM-dd) - 다음 기수 시작일
+ * - seasonEndDate: string (yyyy-MM-dd) - 다음 기수 종료일
  * - reason?: string - 리셋 사유 (선택)
  * - trackId?: string (UUID) - 특정 트랙만 리셋 (선택, 없으면 전체 트랙)
  */
@@ -24,7 +26,13 @@ export async function POST(request: NextRequest) {
 
     // 2. Request body 파싱
     const body = await request.json();
-    const { beforeDate, reason = 'Full Reset', trackId } = body;
+    const { 
+      beforeDate, 
+      seasonStartDate,
+      seasonEndDate,
+      reason = 'Full Reset', 
+      trackId 
+    } = body;
 
     if (!beforeDate) {
       return NextResponse.json(
@@ -33,7 +41,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!seasonStartDate || !seasonEndDate) {
+      return NextResponse.json(
+        { error: 'seasonStartDate and seasonEndDate are required (yyyy-MM-dd)' },
+        { status: 400 }
+      );
+    }
+
+    // 날짜 검증
+    const startDate = new Date(seasonStartDate);
+    const endDate = new Date(seasonEndDate);
+    
+    if (startDate >= endDate) {
+      return NextResponse.json(
+        { error: 'seasonStartDate must be before seasonEndDate' },
+        { status: 400 }
+      );
+    }
+
     console.log('[Reset API] 📅 Reset before date:', beforeDate);
+    console.log('[Reset API] 🎯 Next season:', seasonStartDate, '~', seasonEndDate);
     if (trackId) {
       console.log('[Reset API] 🎯 Target track:', trackId);
     } else {
@@ -163,6 +190,13 @@ export async function POST(request: NextRequest) {
     console.log('[Reset API] ✅ Participants status updated:', updatedParticipants?.length || 0);
 
     // 6. 성공 응답
+    console.log('[Reset API] ✅ Reset completed successfully');
+    console.log('[Reset API] 📊 Results:', {
+      certificationsDeleted: certificationsToDelete?.length || 0,
+      participantsUpdated: updatedParticipants?.length || 0,
+      nextSeason: `${seasonStartDate} ~ ${seasonEndDate}`,
+    });
+
     return NextResponse.json({
       success: true,
       message: 'Reset completed successfully',
@@ -170,6 +204,8 @@ export async function POST(request: NextRequest) {
         certificationsDeleted: certificationsToDelete?.length || 0,
         participantsUpdated: updatedParticipants?.length || 0,
         beforeDate,
+        seasonStartDate,
+        seasonEndDate,
         trackId: trackId || 'all',
         reason,
         backupCompleted: (certificationsToDelete?.length || 0) > 0,
