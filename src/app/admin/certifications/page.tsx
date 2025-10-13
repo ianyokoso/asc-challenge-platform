@@ -47,7 +47,8 @@ function CertificationManagementPageContent() {
 
     // cleanup
     return () => setSaveHandler(null);
-  }, [pendingChanges, saveContents, setSaveHandler]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingChanges, saveContents]);
 
   // 일괄 삭제
   const [bulkDeleteDate, setBulkDeleteDate] = useState(today);
