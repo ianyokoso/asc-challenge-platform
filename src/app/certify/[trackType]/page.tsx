@@ -48,6 +48,10 @@ export default function TrackCertifyPage() {
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const [existingCertification, setExistingCertification] = useState<any | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
+  
+  // Period validation state
+  const [isPeriodValid, setIsPeriodValid] = useState(true);
+  const [periodValidationMessage, setPeriodValidationMessage] = useState<string | null>(null);
 
   // Get current user
   useEffect(() => {
@@ -92,6 +96,25 @@ export default function TrackCertifyPage() {
       setCertificationDate(format(defaultDate, 'yyyy-MM-dd'));
     }
   }, [trackType, lastCertDate, certificationDate]);
+
+  // Validate certification date against active period
+  useEffect(() => {
+    if (certificationDate && activePeriod) {
+      const targetDate = new Date(certificationDate);
+      const validation = isWithinActivePeriod(targetDate, activePeriod);
+      
+      setIsPeriodValid(validation.isValid);
+      setPeriodValidationMessage(validation.message || null);
+      
+      if (!validation.isValid) {
+        console.log('[CertifyPage] ⚠️ Period validation failed:', validation.message);
+      }
+    } else if (certificationDate && !activePeriod) {
+      // No active period - allow certification
+      setIsPeriodValid(true);
+      setPeriodValidationMessage(null);
+    }
+  }, [certificationDate, activePeriod]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -387,6 +410,16 @@ export default function TrackCertifyPage() {
                 <p className="text-body-sm text-gray-500 mt-1">
                   {certificationDate && format(new Date(certificationDate), 'yyyy년 MM월 dd일 (EEE)', { locale: ko })}
                 </p>
+                
+                {/* Period validation warning */}
+                {!isPeriodValid && periodValidationMessage && (
+                  <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p className="text-body-sm text-yellow-800 flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4" />
+                      {periodValidationMessage}
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* URL */}
@@ -434,42 +467,58 @@ export default function TrackCertifyPage() {
               )}
 
               {/* Submit Button */}
-              <div className="flex gap-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => router.back()}
-                  disabled={isSubmitting}
-                  className="flex-1"
-                >
-                  취소
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="flex-1 bg-primary hover:bg-primary-hover text-primary-foreground"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      {isEditMode ? '수정 중...' : '제출 중...'}
-                    </>
-                  ) : (
-                    <>
-                      {isEditMode ? (
-                        <>
-                          <Edit className="h-4 w-4 mr-2" />
-                          인증 수정하기
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle2 className="h-4 w-4 mr-2" />
-                          인증하기
-                        </>
-                      )}
-                    </>
-                  )}
-                </Button>
+              <div className="space-y-3">
+                {/* Period validation info for disabled button */}
+                {!isPeriodValid && periodValidationMessage && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-body-sm text-red-800 font-medium flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4" />
+                      인증 불가: {periodValidationMessage}
+                    </p>
+                    <p className="text-body-xs text-red-700 mt-1">
+                      다른 날짜를 선택하거나 활성 기수 기간을 확인해주세요.
+                    </p>
+                  </div>
+                )}
+                
+                <div className="flex gap-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => router.back()}
+                    disabled={isSubmitting}
+                    className="flex-1"
+                  >
+                    취소
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={isSubmitting || !isPeriodValid}
+                    className="flex-1 bg-primary hover:bg-primary-hover text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={!isPeriodValid ? periodValidationMessage || '인증 불가능한 기간입니다' : undefined}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        {isEditMode ? '수정 중...' : '제출 중...'}
+                      </>
+                    ) : (
+                      <>
+                        {isEditMode ? (
+                          <>
+                            <Edit className="h-4 w-4 mr-2" />
+                            인증 수정하기
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle2 className="h-4 w-4 mr-2" />
+                            인증하기
+                          </>
+                        )}
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
             </form>
           </Card>
