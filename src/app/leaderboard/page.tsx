@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Navbar } from '@/components/layout/navbar';
 import { Footer } from '@/components/layout/footer';
+import { PeriodBanner } from '@/components/PeriodBanner';
 import { Trophy, Medal, Award, Loader2 } from 'lucide-react';
 import { useLeaderboard } from '@/hooks/useLeaderboard';
 import { useTracks } from '@/hooks/useTracks';
@@ -69,6 +70,7 @@ export default function LeaderboardPage() {
   return (
     <>
       <Navbar />
+      <PeriodBanner />
       <main className="min-h-screen py-12 px-4">
         <div className="container mx-auto max-w-6xl">
           {/* Header */}

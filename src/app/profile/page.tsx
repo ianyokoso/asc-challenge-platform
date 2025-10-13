@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Navbar } from '@/components/layout/navbar';
 import { Footer } from '@/components/layout/footer';
+import { PeriodBanner } from '@/components/PeriodBanner';
 import {
   Trophy,
   Calendar,
@@ -73,6 +74,7 @@ export default function ProfilePage() {
     return (
       <>
         <Navbar />
+        <PeriodBanner />
         <main className="min-h-screen py-12 px-4 bg-gray-50">
           <div className="flex items-center justify-center py-20">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -87,6 +89,7 @@ export default function ProfilePage() {
     return (
       <>
         <Navbar />
+        <PeriodBanner />
         <main className="min-h-screen py-12 px-4 bg-gray-50">
           <div className="container mx-auto max-w-6xl">
             <Card className="p-12 text-center">
@@ -113,6 +116,7 @@ export default function ProfilePage() {
   return (
     <>
       <Navbar />
+      <PeriodBanner />
       <main className="min-h-screen py-12 px-4 bg-gray-50">
         <div className="container mx-auto max-w-6xl">
           {/* Profile Header */}

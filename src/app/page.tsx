@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Footer } from '@/components/layout/footer';
+import { PeriodBanner } from '@/components/PeriodBanner';
 import { getUser, signOut } from '@/lib/supabase/client';
 import { CheckCircle, Users, Trophy, Calendar, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -60,6 +61,9 @@ function HomeContent() {
   return (
     <div className="min-h-screen flex flex-col">
       <main className="flex-1">
+        {/* Period Banner */}
+        <PeriodBanner />
+        
         {/* Hero Section */}
         <section className="bg-gradient-to-br from-blue-50 to-indigo-100 py-20">
           <div className="container mx-auto px-4 text-center">

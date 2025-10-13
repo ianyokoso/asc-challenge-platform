@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Navbar } from '@/components/layout/navbar';
 import { Footer } from '@/components/layout/footer';
+import { PeriodBanner } from '@/components/PeriodBanner';
 import { Video, FileText, Code, TrendingUp, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
 import { getUser } from '@/lib/supabase/client';
 import { useUserTracks } from '@/hooks/useUserTracks';
@@ -162,6 +163,7 @@ export default function CertifyIndexPage() {
   return (
     <>
       <Navbar />
+      <PeriodBanner />
       <main className="min-h-screen py-12 px-4">
         <div className="container mx-auto max-w-4xl">
           {/* Header */}
