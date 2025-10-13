@@ -189,6 +189,45 @@ export async function POST(request: NextRequest) {
 
     console.log('[Reset API] ✅ Participants status updated:', updatedParticipants?.length || 0);
 
+    // 5-5. 새로운 기수 생성
+    // 가장 최근 기수 번호 조회
+    const { data: latestPeriod } = await supabase
+      .from('periods')
+      .select('term_number')
+      .order('term_number', { ascending: false })
+      .limit(1)
+      .single();
+
+    const nextTermNumber = (latestPeriod?.term_number || 0) + 1;
+
+    // 기존 활성 기수 비활성화
+    await supabase
+      .from('periods')
+      .update({ is_active: false })
+      .eq('is_active', true);
+
+    // 새로운 기수 생성
+    const { data: newPeriod, error: periodError } = await supabase
+      .from('periods')
+      .insert({
+        term_number: nextTermNumber,
+        start_date: seasonStartDate,
+        end_date: seasonEndDate,
+        is_active: true,
+        description: reason || `${nextTermNumber}기 챌린지`,
+        created_by: adminUser.id,
+      })
+      .select()
+      .single();
+
+    if (periodError) {
+      console.error('[Reset API] ❌ Failed to create new period:', periodError);
+      // 기수 생성 실패는 치명적이지 않으므로 경고만 기록
+      console.warn('[Reset API] ⚠️ Continuing without period creation');
+    } else {
+      console.log('[Reset API] ✅ New period created:', newPeriod?.id, `(${nextTermNumber}기)`);
+    }
+
     // 6. 성공 응답
     console.log('[Reset API] ✅ Reset completed successfully');
     console.log('[Reset API] 📊 Results:', {
@@ -209,6 +248,12 @@ export async function POST(request: NextRequest) {
         trackId: trackId || 'all',
         reason,
         backupCompleted: (certificationsToDelete?.length || 0) > 0,
+        newPeriod: newPeriod ? {
+          id: newPeriod.id,
+          termNumber: newPeriod.term_number,
+          startDate: newPeriod.start_date,
+          endDate: newPeriod.end_date,
+        } : null,
       }
     });
 

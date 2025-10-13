@@ -203,9 +203,13 @@ function CertificationManagementPageContent() {
         throw new Error(responseData.error || 'Failed to reset');
       }
 
+      const periodInfo = responseData.data.newPeriod 
+        ? `${responseData.data.newPeriod.termNumber}기` 
+        : '다음 기수';
+      
       toast({
         title: '전체 리셋 완료 ✅',
-        description: `${responseData.data.certificationsDeleted}개의 인증 기록 삭제 및 ${responseData.data.participantsUpdated}명의 참여자 상태가 대기로 전환되었습니다. 다음 기수: ${format(new Date(data.seasonStartDate), 'yyyy.MM.dd', { locale: ko })} ~ ${format(new Date(data.seasonEndDate), 'yyyy.MM.dd', { locale: ko })}`,
+        description: `${responseData.data.certificationsDeleted}개의 인증 기록 삭제 및 ${responseData.data.participantsUpdated}명의 참여자 상태가 대기로 전환되었습니다. ${periodInfo}: ${format(new Date(data.seasonStartDate), 'yyyy.MM.dd', { locale: ko })} ~ ${format(new Date(data.seasonEndDate), 'yyyy.MM.dd', { locale: ko })}`,
       });
 
       // 모달 닫기 및 폼 초기화
