@@ -248,6 +248,44 @@ export async function submitCertification(data: {
   });
   
   try {
+    // 1. 활성 기수 조회
+    const { data: activePeriod, error: periodError } = await supabase
+      .from('periods')
+      .select('*')
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (periodError) {
+      console.error('❌ [submitCertification] Error fetching active period:', periodError);
+    }
+
+    // 2. 인증 날짜가 활성 기수 기간 내에 있는지 확인
+    if (activePeriod) {
+      const certDate = new Date(data.certification_date);
+      const startDate = new Date(activePeriod.start_date);
+      const endDate = new Date(activePeriod.end_date);
+
+      console.log('[submitCertification] 📅 Period validation:', {
+        certDate: data.certification_date,
+        period: {
+          termNumber: activePeriod.term_number,
+          startDate: activePeriod.start_date,
+          endDate: activePeriod.end_date,
+        },
+        isWithinPeriod: certDate >= startDate && certDate <= endDate,
+      });
+
+      // 기간 외 인증 시도 시 에러
+      if (certDate < startDate || certDate > endDate) {
+        throw new Error(
+          `인증 가능 기간이 아닙니다. 현재 ${activePeriod.term_number}기 기간: ${activePeriod.start_date} ~ ${activePeriod.end_date}`
+        );
+      }
+    } else {
+      console.warn('⚠️ [submitCertification] No active period found - allowing certification without period restriction');
+    }
+
+    // 3. 인증 제출 (period_id 자동 할당)
     const { data: certification, error } = await supabase
       .from('certifications')
       .upsert({
@@ -257,6 +295,7 @@ export async function submitCertification(data: {
         certification_url: data.certification_url,
         certification_date: data.certification_date,
         status: 'submitted',
+        period_id: activePeriod?.id || null, // 활성 기수 ID 자동 할당
       })
       .select()
       .single();
@@ -272,7 +311,11 @@ export async function submitCertification(data: {
       throw new Error(`인증 제출 실패: ${error.message || '알 수 없는 오류'}`);
     }
 
-    console.log('✅ [submitCertification] Success:', certification?.id);
+    console.log('✅ [submitCertification] Success:', {
+      certificationId: certification?.id,
+      periodId: certification?.period_id,
+      termNumber: activePeriod?.term_number,
+    });
     return certification;
   } catch (err: any) {
     console.error('❌ [submitCertification] Critical error:', err);

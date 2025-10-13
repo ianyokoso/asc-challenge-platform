@@ -20,6 +20,7 @@ import { Footer } from '@/components/layout/footer';
 import { CheckCircle2, Loader2, AlertCircle, Edit, Calendar as CalendarIcon } from 'lucide-react';
 import { getUser } from '@/lib/supabase/client';
 import { useUserTracks } from '@/hooks/useUserTracks';
+import { useActivePeriod, isWithinActivePeriod } from '@/hooks/useActivePeriod';
 import { submitCertification, getCertificationByDateAndTrack, getLastCertificationDate } from '@/lib/supabase/database';
 import { format, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -59,6 +60,9 @@ export default function TrackCertifyPage() {
 
   // Fetch user tracks
   const { data: userTracks, isLoading: tracksLoading } = useUserTracks(userId || undefined);
+
+  // Fetch active period
+  const { data: activePeriod, isLoading: periodLoading } = useActivePeriod();
 
   // Get track for this specific track type
   const currentTrack = userTracks?.find(ut => ut.track?.type === trackType);
@@ -119,6 +123,13 @@ export default function TrackCertifyPage() {
     const targetDate = new Date(certificationDate);
     if (!canCertifyForDate(trackType, targetDate, lastCertDate)) {
       setError('이 날짜에는 인증할 수 없습니다. 인증 가능 기간을 확인해주세요.');
+      return;
+    }
+
+    // Check if certification date is within active period
+    const periodCheck = isWithinActivePeriod(targetDate, activePeriod);
+    if (!periodCheck.isValid) {
+      setError(periodCheck.message || '인증 가능 기간이 아닙니다.');
       return;
     }
 
@@ -306,6 +317,25 @@ export default function TrackCertifyPage() {
               {getCertificationGuideMessage(trackType)}
             </p>
           </div>
+
+          {/* Active Period Info */}
+          {activePeriod && (
+            <Card className="p-4 mb-6 bg-blue-50 border-blue-200">
+              <div className="flex items-center gap-3">
+                <div className="bg-blue-500 text-white rounded-full w-10 h-10 flex items-center justify-center font-bold">
+                  {activePeriod.term_number}기
+                </div>
+                <div>
+                  <p className="text-body-sm font-medium text-gray-900">
+                    현재 진행 중인 기수
+                  </p>
+                  <p className="text-body-xs text-gray-600">
+                    {format(new Date(activePeriod.start_date), 'yyyy.MM.dd', { locale: ko })} ~ {format(new Date(activePeriod.end_date), 'yyyy.MM.dd', { locale: ko })}
+                  </p>
+                </div>
+              </div>
+            </Card>
+          )}
 
           {/* Track Info */}
           <Card className="p-6 mb-6 bg-gradient-to-r from-primary/10 to-secondary/10 border-primary/20">
