@@ -39,28 +39,8 @@ function getTrackIcon(trackKey: TrackKey) {
   }
 }
 
-interface TrackData {
-  key: TrackKey;
-  name: string;
-  description: string;
+interface TrackData extends DashboardData['tracks'][0] {
   icon: React.ReactNode;
-  today: {
-    completed: number;
-    targets: number;
-    rate: number;
-  };
-  dropCandidates: number;
-  todayIsDue: boolean;
-  badge?: string;
-}
-
-interface DashboardData {
-  cohort: {
-    start: string;
-    end: string;
-    termNumber: number;
-  };
-  tracks: TrackData[];
 }
 
 /**
