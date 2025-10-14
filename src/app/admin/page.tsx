@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { AdminPageGuard } from '@/components/guards/AdminPageGuard';
 import { useActivePeriod } from '@/hooks/useActivePeriod';
-import { getDashboardData, DashboardData } from '@/lib/api/dashboard';
+import { getDashboardData, DashboardData as ApiDashboardData } from '@/lib/api/dashboard';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
@@ -39,8 +39,19 @@ function getTrackIcon(trackKey: TrackKey) {
   }
 }
 
-interface TrackData extends DashboardData['tracks'][0] {
+interface TrackData {
+  key: TrackKey;
+  name: string;
+  description: string;
   icon: React.ReactNode;
+  today: {
+    completed: number;
+    targets: number;
+    rate: number;
+  };
+  dropCandidates: number;
+  todayIsDue: boolean;
+  badge?: string;
 }
 
 /**
@@ -48,7 +59,7 @@ interface TrackData extends DashboardData['tracks'][0] {
  */
 function AdminDashboardContent() {
   const router = useRouter();
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [dashboardData, setDashboardData] = useState<ApiDashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
