@@ -226,7 +226,7 @@ export function CertificationCalendar({
   console.log('[CertificationCalendar] 🎯 Anchor certified set:', anchorCertifiedSet);
 
   // 2) 셀 상태 판단 헬퍼 함수들
-  const isAnchorDay = (track: string, date: Date) => {
+  const isAnchorDay = (track: TrackType, date: Date) => {
     const d = startOfDayKST(date);
     const anchorOfD = getAnchorDate(track, d);
     return dateKeyKST(anchorOfD) === dateKeyKST(d);
