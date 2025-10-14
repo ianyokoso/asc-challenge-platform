@@ -5,12 +5,12 @@ import { useRouter } from 'next/navigation';
 import { AdminSidebar } from '@/components/layout/admin-sidebar';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { 
+import {
   Loader2,
   AlertCircle,
   Video,
   FileText,
-  Code,
+  Hammer,
   TrendingUp,
   Calendar
 } from 'lucide-react';
@@ -20,39 +20,13 @@ import { getDashboardData, DashboardData as ApiDashboardData } from '@/lib/api/d
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
-// 트랙 타입 정의
-type TrackKey = 'short-form' | 'long-form' | 'builder' | 'sales';
-
-// 트랙 아이콘 반환 함수
-function getTrackIcon(trackKey: TrackKey) {
-  switch (trackKey) {
-    case 'short-form':
-      return <Video className="h-6 w-6" />;
-    case 'long-form':
-      return <FileText className="h-6 w-6" />;
-    case 'builder':
-      return <Code className="h-6 w-6" />;
-    case 'sales':
-      return <TrendingUp className="h-6 w-6" />;
-    default:
-      return <Video className="h-6 w-6" />;
-  }
-}
-
-interface TrackData {
-  key: TrackKey;
-  name: string;
-  description: string;
-  icon: React.ReactNode;
-  today: {
-    completed: number;
-    targets: number;
-    rate: number;
-  };
-  dropCandidates: number;
-  todayIsDue: boolean;
-  badge?: string;
-}
+// 트랙 아이콘 매핑 상수 (API 타입과 일치)
+const TRACK_ICONS: Record<ApiDashboardData['tracks'][0]['key'], React.ReactNode> = {
+  'short-form': <Video className="h-5 w-5" />,
+  'long-form': <FileText className="h-5 w-5" />,
+  'builder': <Hammer className="h-5 w-5" />,
+  'sales': <TrendingUp className="h-5 w-5" />
+} as const;
 
 /**
  * 관리자 대시보드 - 현재 기수 4개 트랙 카드 뷰
@@ -77,17 +51,7 @@ function AdminDashboardContent() {
 
         // 실제 API 호출
         const data = await getDashboardData(activePeriod.id);
-        
-        // 아이콘 추가
-        const dataWithIcons = {
-          ...data,
-          tracks: data.tracks.map(track => ({
-            ...track,
-            icon: getTrackIcon(track.key)
-          }))
-        };
-
-        setDashboardData(dataWithIcons);
+        setDashboardData(data);
       } catch (err) {
         console.error('대시보드 데이터 로드 실패:', err);
         setError('대시보드 데이터를 불러오는데 실패했습니다.');
@@ -100,7 +64,7 @@ function AdminDashboardContent() {
   }, [activePeriod]);
 
   // 카드 클릭 핸들러
-  const handleCardClick = (trackKey: TrackKey) => {
+  const handleCardClick = (trackKey: ApiDashboardData['tracks'][0]['key']) => {
     router.push(`/admin/tracking?track=${trackKey}`);
   };
 
@@ -184,7 +148,7 @@ function AdminDashboardContent() {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-primary/10 rounded-lg text-primary">
-                    {track.icon}
+                    {TRACK_ICONS[track.key]}
                   </div>
                   <div>
                     <h3 className="text-h5 font-heading text-gray-900">
