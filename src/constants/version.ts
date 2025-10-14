@@ -12,7 +12,7 @@ export const APP_VERSION = '1.6.0';
 export const VERSION_HISTORY = [
   {
     version: '1.6.0',
-    date: '2025-01-15',
+    date: '2025-10-14',
     changes: [
       '관리자 대시보드 완전 리뉴얼 - 4개 트랙 카드 뷰',
       'KST 기준 데이터 계산 로직 구현',
