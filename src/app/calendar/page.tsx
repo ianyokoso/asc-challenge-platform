@@ -47,10 +47,16 @@ export default function CalendarPage() {
   // Fetch active period
   const { data: activePeriod, isLoading: periodLoading } = useActivePeriod();
   
-  // Auto-select first track if not selected
+  // Auto-select first track if not selected (prioritize ORDER)
   useEffect(() => {
     if (userTracks && userTracks.length > 0 && !selectedTrackId) {
-      setSelectedTrackId(userTracks[0].track_id);
+      const ORDER = ["shortform", "longform", "builder", "sales"];
+      const sortedTracks = userTracks.sort((a, b) => {
+        const aIndex = ORDER.indexOf(a.track?.type || '');
+        const bIndex = ORDER.indexOf(b.track?.type || '');
+        return aIndex - bIndex;
+      });
+      setSelectedTrackId(sortedTracks[0].track_id);
     }
   }, [userTracks, selectedTrackId]);
   
@@ -154,16 +160,23 @@ export default function CalendarPage() {
                     <SelectValue placeholder="트랙을 선택하세요" />
                   </SelectTrigger>
                   <SelectContent>
-                    {userTracks.map((ut) => (
-                      <SelectItem key={ut.track_id} value={ut.track_id}>
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{ut.track?.name}</span>
-                          <span className="text-gray-500 text-sm">
-                            ({ut.track?.type})
-                          </span>
-                        </div>
-                      </SelectItem>
-                    ))}
+                    {userTracks
+                      .sort((a, b) => {
+                        const ORDER = ["shortform", "longform", "builder", "sales"];
+                        const aIndex = ORDER.indexOf(a.track?.type || '');
+                        const bIndex = ORDER.indexOf(b.track?.type || '');
+                        return aIndex - bIndex;
+                      })
+                      .map((ut) => (
+                        <SelectItem key={ut.track_id} value={ut.track_id}>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{ut.track?.name}</span>
+                            <span className="text-gray-500 text-sm">
+                              ({ut.track?.type})
+                            </span>
+                          </div>
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
                 {selectedTrack && (

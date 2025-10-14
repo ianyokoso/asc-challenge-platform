@@ -92,7 +92,14 @@ export function TrackAssignmentDialog({
               </p>
             </div>
           )}
-          {tracks.map(track => {
+          {tracks
+            .sort((a, b) => {
+              const ORDER = ["shortform", "longform", "builder", "sales"];
+              const aIndex = ORDER.indexOf(a.type);
+              const bIndex = ORDER.indexOf(b.type);
+              return aIndex - bIndex;
+            })
+            .map(track => {
             const isSelected = selectedTrackIds.includes(track.id);
             
             return (
