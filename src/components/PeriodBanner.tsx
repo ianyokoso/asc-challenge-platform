@@ -6,6 +6,7 @@ import { ko } from 'date-fns/locale';
 import { CalendarDays, AlertCircle, Clock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { getNow } from '@/lib/utils/demo-time';
+import { toKSTMidnight } from '@/lib/utils/date-helpers';
 
 export function PeriodBanner() {
   const { data: activePeriod, isLoading } = useActivePeriod();
@@ -15,8 +16,8 @@ export function PeriodBanner() {
     return null;
   }
 
-  const today = getNow(); // 데모 모드 고려
-  const endDate = new Date(activePeriod.end_date);
+  const today = toKSTMidnight(getNow()); // 데모 모드 고려 + KST 기준
+  const endDate = toKSTMidnight(activePeriod.end_date);
   const daysRemaining = differenceInDays(endDate, today);
   
   // 기간이 임박했는지 확인 (7일 이하)

@@ -1,5 +1,6 @@
 // Supabase database operations
 import { createClient } from './client';
+import { toKSTMidnight, isBeforeKST, isAfterKST, isWithinRangeKST } from '../utils/date-helpers';
 import type {
   User,
   Track,
@@ -259,26 +260,35 @@ export async function submitCertification(data: {
       console.error('❌ [submitCertification] Error fetching active period:', periodError);
     }
 
-    // 2. 인증 날짜가 활성 기수 기간 내에 있는지 확인
+    // 2. 인증 날짜가 활성 기수 기간 내에 있는지 확인 (KST 기준)
     if (activePeriod) {
-      const certDate = new Date(data.certification_date);
-      const startDate = new Date(activePeriod.start_date);
-      const endDate = new Date(activePeriod.end_date);
+      const certDate = toKSTMidnight(data.certification_date);
+      const startDate = toKSTMidnight(activePeriod.start_date);
+      const endDate = toKSTMidnight(activePeriod.end_date);
 
-      console.log('[submitCertification] 📅 Period validation:', {
+      const isWithinPeriod = isWithinRangeKST(certDate, startDate, endDate);
+
+      console.log('[submitCertification] 📅 Period validation (KST):', {
         certDate: data.certification_date,
         period: {
           termNumber: activePeriod.term_number,
           startDate: activePeriod.start_date,
           endDate: activePeriod.end_date,
         },
-        isWithinPeriod: certDate >= startDate && certDate <= endDate,
+        isWithinPeriod,
       });
 
-      // 기간 외 인증 시도 시 에러
-      if (certDate < startDate || certDate > endDate) {
+      // 시작일 이전
+      if (isBeforeKST(certDate, startDate)) {
         throw new Error(
-          `인증 가능 기간이 아닙니다. 현재 ${activePeriod.term_number}기 기간: ${activePeriod.start_date} ~ ${activePeriod.end_date}`
+          `${activePeriod.term_number}기는 ${activePeriod.start_date}부터 시작됩니다.`
+        );
+      }
+
+      // 종료일 이후
+      if (isAfterKST(certDate, endDate)) {
+        throw new Error(
+          `${activePeriod.term_number}기는 ${activePeriod.end_date}에 종료되었습니다.`
         );
       }
     } else {

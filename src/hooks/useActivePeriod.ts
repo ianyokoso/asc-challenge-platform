@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
+import { toKSTMidnight, isBeforeKST, isAfterKST, isWithinRangeKST } from '@/lib/utils/date-helpers';
 
 export interface Period {
   id: string;
@@ -41,7 +42,11 @@ export function useActivePeriod() {
 }
 
 /**
- * 인증 날짜가 활성 기수 기간 내에 있는지 확인하는 헬퍼 함수
+ * 인증 날짜가 활성 기수 기간 내에 있는지 확인하는 헬퍼 함수 (KST 기준)
+ * 
+ * 규칙:
+ * - 기수 전체 기간(start_date ~ end_date) 내의 모든 날짜는 인증 가능
+ * - 시작일 이전 또는 종료일 이후는 불가
  */
 export function isWithinActivePeriod(
   certificationDate: Date,
@@ -52,29 +57,28 @@ export function isWithinActivePeriod(
     return { isValid: true };
   }
 
-  const startDate = new Date(activePeriod.start_date);
-  const endDate = new Date(activePeriod.end_date);
+  // KST 기준으로 날짜 정규화
+  const certDate = toKSTMidnight(certificationDate);
+  const startDate = toKSTMidnight(activePeriod.start_date);
+  const endDate = toKSTMidnight(activePeriod.end_date);
 
-  // 날짜를 자정 기준으로 비교하기 위해 시간 제거
-  const certDate = new Date(certificationDate);
-  certDate.setHours(0, 0, 0, 0);
-  startDate.setHours(0, 0, 0, 0);
-  endDate.setHours(0, 0, 0, 0);
-
-  if (certDate < startDate) {
+  // 시작일 이전
+  if (isBeforeKST(certDate, startDate)) {
     return {
       isValid: false,
       message: `${activePeriod.term_number}기는 ${activePeriod.start_date}부터 시작됩니다.`,
     };
   }
 
-  if (certDate > endDate) {
+  // 종료일 이후
+  if (isAfterKST(certDate, endDate)) {
     return {
       isValid: false,
       message: `${activePeriod.term_number}기는 ${activePeriod.end_date}에 종료되었습니다.`,
     };
   }
 
+  // 기수 기간 내 - 모든 날짜 허용
   return { isValid: true };
 }
 
