@@ -14,10 +14,93 @@ import {
   addMonths,
   subMonths,
   isAfter,
+  startOfWeek,
 } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { toKSTMidnight } from '@/lib/utils/date-helpers';
+
+// KST 시간대 유틸리티
+const KST_OFFSET = 9 * 60 * 60 * 1000; // 9시간 (밀리초)
+const DAY = 24 * 60 * 60 * 1000;
+
+/**
+ * KST 기준으로 날짜를 처리하는 유틸리티 함수들
+ */
+const toKST = (d: Date | string) => new Date((typeof d === 'string' ? new Date(d) : d).getTime() + KST_OFFSET);
+const startOfDayKST = (d: Date | string) => {
+  const k = toKST(d);
+  return new Date(Date.UTC(k.getUTCFullYear(), k.getUTCMonth(), k.getUTCDate()));
+};
+const addDaysKST = (d: Date | string, days: number) => new Date(startOfDayKST(d).getTime() + days * DAY);
+const getKSTDay = (d: Date | string) => toKST(d).getUTCDay(); // 0=일,1=월,2=화...
+const alignToSundayKST = (d: Date | string) => {
+  const dateKST = startOfDayKST(d);
+  const dayOfWeek = dateKST.getDay(); // 0=일요일, 1=월요일, ...
+  // 해당 주의 일요일로 이동
+  return addDaysKST(dateKST, -dayOfWeek);
+};
+
+const alignToWeekdayKST = (d: Date | string, weekday: number) => {
+  // 먼저 일요일로 정렬한 후, 원하는 요일로 이동
+  const sunday = alignToSundayKST(d);
+  return addDaysKST(sunday, weekday);
+};
+
+/**
+ * 트랙별 앵커일(주간 인증일) 계산
+ * @param track - 트랙 타입
+ * @param dateKST - KST 기준 날짜
+ * @returns 해당 주의 앵커일
+ */
+function getAnchorDate(track: TrackType, dateKST: Date): Date {
+  if (track === 'shortform') {
+    // 숏폼은 앵커일 개념 없음 (평일 매일)
+    return dateKST;
+  }
+  
+  if (track === 'longform' || track === 'builder') {
+    // 롱폼/빌더: 주의 일요일
+    return alignToSundayKST(dateKST);
+  }
+  
+  if (track === 'sales') {
+    // 세일즈: 주의 화요일
+    return alignToWeekdayKST(dateKST, 2);
+  }
+  
+  return dateKST;
+}
+
+/**
+ * 인증 데이터를 주간 앵커일 기준으로 정규화
+ * @param track - 트랙 타입
+ * @param certifications - 인증 데이터 배열
+ * @returns 앵커일을 키로 하는 Map
+ */
+function buildWeeklyMap(track: TrackType, certifications: CertificationRecord[]): Map<string, CertificationRecord> {
+  const weeklyMap = new Map<string, CertificationRecord>();
+  
+  if (track === 'shortform') {
+    // 숏폼은 앵커일 정규화 없음
+    certifications.forEach(cert => {
+      weeklyMap.set(cert.date, cert);
+    });
+    return weeklyMap;
+  }
+  
+  // 주간 트랙: 앵커일 기준으로 정규화
+  certifications.forEach(cert => {
+    const certDate = startOfDayKST(cert.date);
+    const anchorDate = getAnchorDate(track, certDate);
+    const anchorKey = format(anchorDate, 'yyyy-MM-dd');
+    
+    // 같은 앵커일에 여러 건이면 최신 것 우선 (여기서는 단순히 덮어쓰기)
+    weeklyMap.set(anchorKey, cert);
+  });
+  
+  return weeklyMap;
+}
 
 /**
  * Certification record type
@@ -145,11 +228,8 @@ export function CertificationCalendar({
   const monthEnd = endOfMonth(currentDate);
   const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
-  // Create a map for quick lookup of certification status
-  const certificationMap = new Map<string, boolean>();
-  records.forEach((record) => {
-    certificationMap.set(record.date, record.certified);
-  });
+  // 앵커일 기준으로 인증 데이터 정규화
+  const weeklyCertificationMap = buildWeeklyMap(track, records);
 
   const previousMonth = () => {
     setCurrentDate(subMonths(currentDate, 1));
@@ -160,8 +240,27 @@ export function CertificationCalendar({
   };
 
   const isCertified = (date: Date): boolean => {
-    const dateStr = format(date, 'yyyy-MM-dd');
-    return certificationMap.get(dateStr) === true;
+    if (track === 'shortform') {
+      // 숏폼은 실제 제출일 기준
+      const dateStr = format(date, 'yyyy-MM-dd');
+      return weeklyCertificationMap.get(dateStr)?.certified === true;
+    }
+    
+    // 주간 트랙: 앵커일 기준으로 확인
+    const dateKST = startOfDayKST(date);
+    const anchorDate = getAnchorDate(track, dateKST);
+    const anchorKey = format(anchorDate, 'yyyy-MM-dd');
+    const anchorRecord = weeklyCertificationMap.get(anchorKey);
+    
+    // 현재 날짜가 앵커일인지 확인
+    const isAnchorDate = anchorDate.getTime() === dateKST.getTime();
+    
+    // 앵커일이 아니면 인증 상태 없음
+    if (!isAnchorDate) {
+      return false;
+    }
+    
+    return anchorRecord?.certified === true;
   };
 
   const isPastDate = (date: Date): boolean => {
@@ -175,23 +274,57 @@ export function CertificationCalendar({
     }
   };
 
-  // 통계 계산 (비활성 날짜 제외)
+  // 통계 계산 (앵커일 기준)
   const calculateStats = () => {
-    const activeDates = daysInMonth.filter(date => {
-      const withinCohort = isWithinCohort(date, activePeriod);
-      const isWeekendDate = isWeekend(date);
-      return withinCohort && !(track === 'shortform' && isWeekendDate);
-    });
+    if (track === 'shortform') {
+      // 숏폼: 기존 로직 (평일만)
+      const activeDates = daysInMonth.filter(date => {
+        const withinCohort = isWithinCohort(date, activePeriod);
+        const isWeekendDate = isWeekend(date);
+        return withinCohort && !isWeekendDate;
+      });
 
-    const certifiedCount = activeDates.filter(date => isCertified(date)).length;
-    const totalActiveDays = activeDates.length;
-    const completionRate = totalActiveDays > 0 ? Math.round((certifiedCount / totalActiveDays) * 100) : 0;
+      const certifiedCount = activeDates.filter(date => isCertified(date)).length;
+      const totalActiveDays = activeDates.length;
+      const completionRate = totalActiveDays > 0 ? Math.round((certifiedCount / totalActiveDays) * 100) : 0;
 
-    return {
-      certified: certifiedCount,
-      total: totalActiveDays,
-      rate: completionRate,
-    };
+      return {
+        certified: certifiedCount,
+        total: totalActiveDays,
+        rate: completionRate,
+      };
+    } else {
+      // 주간 트랙: 앵커일 기준으로 계산
+      const anchorDates = new Set<string>();
+      
+      daysInMonth.forEach(date => {
+        const withinCohort = isWithinCohort(date, activePeriod);
+        if (withinCohort) {
+          const dateKST = startOfDayKST(date);
+          const anchorDate = getAnchorDate(track, dateKST);
+          const isAnchorDate = anchorDate.getTime() === dateKST.getTime();
+          
+          if (isAnchorDate) {
+            const anchorKey = format(anchorDate, 'yyyy-MM-dd');
+            anchorDates.add(anchorKey);
+          }
+        }
+      });
+
+      const totalAnchorDays = anchorDates.size;
+      const certifiedAnchorDays = Array.from(anchorDates).filter(anchorKey => {
+        const anchorRecord = weeklyCertificationMap.get(anchorKey);
+        return anchorRecord?.certified === true;
+      }).length;
+
+      const completionRate = totalAnchorDays > 0 ? Math.round((certifiedAnchorDays / totalAnchorDays) * 100) : 0;
+
+      return {
+        certified: certifiedAnchorDays,
+        total: totalAnchorDays,
+        rate: completionRate,
+      };
+    }
   };
 
   const stats = calculateStats();
@@ -256,8 +389,24 @@ export function CertificationCalendar({
           const withinCohort = isWithinCohort(date, activePeriod);
           const isCurrentMonth = isSameMonth(date, currentDate);
 
-          // 비활성 조건: 기수 기간 외 OR 숏폼 주말
-          const isInactive = !withinCohort || (track === 'shortform' && isWeekend(date));
+          // 비활성 조건 결정
+          let isInactive = false;
+          
+          if (!withinCohort) {
+            // 기수 기간 외
+            isInactive = true;
+          } else if (track === 'shortform' && isWeekend(date)) {
+            // 숏폼 주말
+            isInactive = true;
+          } else if (track !== 'shortform') {
+            // 주간 트랙: 앵커일이 아니면 비활성
+            const dateKST = startOfDayKST(date);
+            const anchorDate = getAnchorDate(track, dateKST);
+            const isAnchorDate = anchorDate.getTime() === dateKST.getTime();
+            if (!isAnchorDate) {
+              isInactive = true;
+            }
+          }
 
           if (isInactive) {
             return (
@@ -293,11 +442,9 @@ export function CertificationCalendar({
                   : 'border-gray-200'
               } ${
                 certified
-                  ? 'bg-accent/10 hover:bg-accent/20 cursor-pointer'
-                  : !activeDay
-                  ? 'bg-gray-100 text-gray-400'
-                  : past && activeDay
-                  ? 'bg-gray-50'
+                  ? 'bg-green-50 hover:bg-green-100 cursor-pointer'
+                  : past
+                  ? 'bg-red-50 hover:bg-red-100 cursor-pointer'
                   : 'hover:bg-gray-50'
               } ${
                 !isCurrentMonth ? 'opacity-40' : ''
@@ -357,8 +504,24 @@ export function CertificationCalendar({
                   const activeDay = isActiveDayForTrack(track, date);
                   const withinCohort = isWithinCohort(date, activePeriod);
 
-                  // 비활성 조건: 기수 기간 외 OR 숏폼 주말
-                  const isInactive = !withinCohort || (track === 'shortform' && isWeekend(date));
+                  // 비활성 조건 결정
+                  let isInactive = false;
+                  
+                  if (!withinCohort) {
+                    // 기수 기간 외
+                    isInactive = true;
+                  } else if (track === 'shortform' && isWeekend(date)) {
+                    // 숏폼 주말
+                    isInactive = true;
+                  } else if (track !== 'shortform') {
+                    // 주간 트랙: 앵커일이 아니면 비활성
+                    const dateKST = startOfDayKST(date);
+                    const anchorDate = getAnchorDate(track, dateKST);
+                    const isAnchorDate = anchorDate.getTime() === dateKST.getTime();
+                    if (!isAnchorDate) {
+                      isInactive = true;
+                    }
+                  }
 
                   if (isInactive) {
                     return (
@@ -388,11 +551,9 @@ export function CertificationCalendar({
                           : 'border-gray-200'
                       } ${
                         certified
-                          ? 'bg-accent/10 hover:bg-accent/20 cursor-pointer'
-                          : !activeDay
-                          ? 'bg-gray-100 text-gray-400'
-                          : past && activeDay
-                          ? 'bg-gray-50'
+                          ? 'bg-green-50 hover:bg-green-100 cursor-pointer'
+                          : past
+                          ? 'bg-red-50 hover:bg-red-100 cursor-pointer'
                           : 'hover:bg-gray-50'
                       }`}
                     >
