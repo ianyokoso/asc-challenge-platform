@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { CheckCircle2, Circle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CheckCircle2, XCircle, MinusCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   format,
   startOfMonth,
@@ -276,6 +276,7 @@ export function CertificationCalendar({
                   >
                     {format(date, 'd')}
                   </span>
+                  <MinusCircle className="h-5 w-5 text-gray-400" />
                 </div>
               </div>
             );
@@ -316,9 +317,9 @@ export function CertificationCalendar({
                   {format(date, 'd')}
                 </span>
                 {certified ? (
-                  <CheckCircle2 className="h-5 w-5 text-accent" />
+                  <CheckCircle2 className="h-5 w-5 text-green-600" />
                 ) : past && activeDay ? (
-                  <Circle className="h-5 w-5 text-gray-300" />
+                  <XCircle className="h-5 w-5 text-red-500" />
                 ) : null}
               </div>
             </button>
@@ -370,6 +371,7 @@ export function CertificationCalendar({
                           <span className="text-body-xs font-semibold text-gray-400">
                             {format(date, 'd')}
                           </span>
+                          <MinusCircle className="h-3 w-3 text-gray-400" />
                         </div>
                       </div>
                     );
@@ -399,9 +401,9 @@ export function CertificationCalendar({
                           {format(date, 'd')}
                         </span>
                         {certified ? (
-                          <CheckCircle2 className="h-4 w-4 text-accent" />
+                          <CheckCircle2 className="h-4 w-4 text-green-600" />
                         ) : past && activeDay ? (
-                          <Circle className="h-4 w-4 text-gray-300" />
+                          <XCircle className="h-4 w-4 text-red-500" />
                         ) : null}
                       </div>
                     </button>
@@ -414,31 +416,23 @@ export function CertificationCalendar({
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-6 mt-6 pt-6 border-t border-gray-200">
+      <div className="flex flex-wrap items-center gap-6 mt-6 pt-6 border-t border-gray-200">
         <div className="flex items-center gap-2">
-          <CheckCircle2 className="h-5 w-5 text-accent" />
+          <CheckCircle2 className="h-5 w-5 text-green-600" />
           <span className="text-body-sm text-gray-600">인증 완료</span>
         </div>
         <div className="flex items-center gap-2">
-          <Circle className="h-5 w-5 text-gray-300" />
+          <XCircle className="h-5 w-5 text-red-500" />
           <span className="text-body-sm text-gray-600">미인증</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-5 h-5 border-2 border-primary rounded" />
           <span className="text-body-sm text-gray-600">오늘</span>
         </div>
-        {track && (
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 bg-gray-100 rounded" />
-            <span className="text-body-sm text-gray-600">비활성</span>
-          </div>
-        )}
-        {activePeriod && (
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 bg-gray-100 rounded cursor-not-allowed" />
-            <span className="text-body-sm text-gray-600">기수 기간 외</span>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          <MinusCircle className="h-5 w-5 text-gray-400" />
+          <span className="text-body-sm text-gray-600">비활성</span>
+        </div>
       </div>
     </div>
   );
