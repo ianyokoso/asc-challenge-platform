@@ -28,46 +28,28 @@ function isRequiredDate(date: Date, trackType: string): boolean {
 }
 
 // 기수 기간 내의 인증 필요 날짜 목록 생성 (KST 기준)
-function getRequiredDatesInPeriod(
-  year: number, 
-  month: number, 
-  trackType: string,
-  periodStart: string | null,
-  periodEnd: string | null
+function getCohortRequiredDates(
+  periodStart: string,
+  periodEnd: string,
+  trackType: string
 ): string[] {
-  const monthStart = startOfMonth(new Date(year, month - 1));
-  const monthEnd = endOfMonth(new Date(year, month - 1));
+  const cohortStart = toKSTMidnight(periodStart);
+  const cohortEnd = toKSTMidnight(periodEnd);
   
-  // 기수 기간이 설정되어 있으면 해당 기간으로 제한
-  let start = monthStart;
-  let end = monthEnd;
+  console.log('[getCohortRequiredDates] 📅 Generating dates for cohort:', {
+    cohortRange: `${format(cohortStart, 'yyyy-MM-dd')} ~ ${format(cohortEnd, 'yyyy-MM-dd')}`,
+    trackType,
+  });
   
-  if (periodStart && periodEnd) {
-    const cohortStart = toKSTMidnight(periodStart);
-    const cohortEnd = toKSTMidnight(periodEnd);
-    
-    // 기수 시작일이 월 시작일보다 늦으면 기수 시작일 사용
-    if (isAfterKST(cohortStart, monthStart)) {
-      start = cohortStart;
-    }
-    
-    // 기수 종료일이 월 종료일보다 빠르면 기수 종료일 사용
-    if (isBeforeKST(cohortEnd, monthEnd)) {
-      end = cohortEnd;
-    }
-    
-    console.log('[getRequiredDatesInPeriod] 📅 Period constraint:', {
-      monthRange: `${format(monthStart, 'yyyy-MM-dd')} ~ ${format(monthEnd, 'yyyy-MM-dd')}`,
-      cohortRange: `${format(cohortStart, 'yyyy-MM-dd')} ~ ${format(cohortEnd, 'yyyy-MM-dd')}`,
-      actualRange: `${format(start, 'yyyy-MM-dd')} ~ ${format(end, 'yyyy-MM-dd')}`,
-    });
-  }
+  const allDates = eachDayOfInterval({ start: cohortStart, end: cohortEnd });
   
-  const allDates = eachDayOfInterval({ start, end });
-  
-  return allDates
+  const requiredDates = allDates
     .filter(date => isRequiredDate(date, trackType))
     .map(date => format(date, 'yyyy-MM-dd'));
+  
+  console.log('[getCohortRequiredDates] ✅ Generated', requiredDates.length, 'required dates');
+  
+  return requiredDates;
 }
 
 export async function GET(request: NextRequest) {
@@ -98,36 +80,60 @@ export async function GET(request: NextRequest) {
     console.log('[API] ✅ Admin verified:', user.email);
 
     const searchParams = request.nextUrl.searchParams;
-    const year = parseInt(searchParams.get('year') || new Date().getFullYear().toString());
-    const month = parseInt(searchParams.get('month') || (new Date().getMonth() + 1).toString());
+    const periodId = searchParams.get('periodId');
 
-    console.log('[API] 🚀 Fetching certification tracking data:', { year, month });
+    console.log('[API] 🚀 Fetching certification tracking data:', { periodId });
 
-    // 1. 활성 기수 정보 조회
-    const { data: activePeriod, error: periodError } = await supabase
+    // 1. 모든 기수 목록 조회 (최신순)
+    const { data: allPeriods, error: allPeriodsError } = await supabase
       .from('periods')
       .select('*')
-      .eq('is_active', true)
-      .maybeSingle();
+      .order('term_number', { ascending: false });
 
-    if (periodError) {
-      console.error('[API] ❌ Error fetching active period:', periodError);
+    if (allPeriodsError) {
+      console.error('[API] ❌ Error fetching periods:', allPeriodsError);
+      return NextResponse.json({ error: 'Failed to fetch periods' }, { status: 500 });
     }
 
-    let periodStart: string | null = null;
-    let periodEnd: string | null = null;
-
-    if (activePeriod) {
-      periodStart = activePeriod.start_date;
-      periodEnd = activePeriod.end_date;
-      console.log('[API] ✅ Active period found:', {
-        termNumber: activePeriod.term_number,
-        startDate: periodStart,
-        endDate: periodEnd,
+    if (!allPeriods || allPeriods.length === 0) {
+      console.log('[API] ⚠️ No periods found');
+      return NextResponse.json({ 
+        data: [],
+        periods: [],
+        selectedPeriod: null,
       });
-    } else {
-      console.log('[API] ⚠️ No active period found - showing all dates in month');
     }
+
+    // 2. 선택된 기수 결정 (periodId가 없으면 활성 기수, 활성 기수가 없으면 최신 기수)
+    let selectedPeriod = null;
+    
+    if (periodId) {
+      selectedPeriod = allPeriods.find(p => p.id === periodId);
+      if (!selectedPeriod) {
+        console.warn('[API] ⚠️ Requested periodId not found, falling back to active period');
+      }
+    }
+    
+    if (!selectedPeriod) {
+      // 활성 기수 찾기
+      selectedPeriod = allPeriods.find(p => p.is_active);
+    }
+    
+    if (!selectedPeriod) {
+      // 가장 최신 기수 사용
+      selectedPeriod = allPeriods[0];
+    }
+
+    const periodStart = selectedPeriod.start_date;
+    const periodEnd = selectedPeriod.end_date;
+
+    console.log('[API] ✅ Selected period:', {
+      id: selectedPeriod.id,
+      termNumber: selectedPeriod.term_number,
+      startDate: periodStart,
+      endDate: periodEnd,
+      isActive: selectedPeriod.is_active,
+    });
 
     // 2. 모든 활성 트랙 조회
     const { data: tracks, error: tracksError } = await supabase
@@ -144,7 +150,8 @@ export async function GET(request: NextRequest) {
       console.log('[API] ⚠️ No active tracks found');
       return NextResponse.json({ 
         data: [],
-        activePeriod: activePeriod || null,
+        periods: allPeriods,
+        selectedPeriod,
       });
     }
 
@@ -154,7 +161,7 @@ export async function GET(request: NextRequest) {
 
     // 3. 각 트랙별로 데이터 처리
     for (const track of tracks) {
-      const requiredDates = getRequiredDatesInPeriod(year, month, track.type, periodStart, periodEnd);
+      const requiredDates = getCohortRequiredDates(periodStart, periodEnd, track.type);
 
       // 해당 트랙의 참여자 조회 (SERVICE_ROLE로 모든 데이터 접근 가능)
       const { data: userTracks, error: userTracksError } = await supabase
@@ -188,16 +195,13 @@ export async function GET(request: NextRequest) {
 
       console.log(`[API] ✅ Found ${userTracks.length} participants for ${track.name}`);
 
-      // 해당 트랙의 해당 월 인증 데이터 조회
-      const startDate = format(startOfMonth(new Date(year, month - 1)), 'yyyy-MM-dd');
-      const endDate = format(endOfMonth(new Date(year, month - 1)), 'yyyy-MM-dd');
-
+      // 해당 트랙의 해당 기수 기간 인증 데이터 조회
       const { data: certifications, error: certificationsError } = await supabase
         .from('certifications')
         .select('user_id, certification_date, certification_url, submitted_at, status')
         .eq('track_id', track.id)
-        .gte('certification_date', startDate)
-        .lte('certification_date', endDate);
+        .gte('certification_date', periodStart)
+        .lte('certification_date', periodEnd);
 
       if (certificationsError) {
         console.error(`[API] ❌ Error fetching certifications for ${track.name}:`, certificationsError);
@@ -270,7 +274,8 @@ export async function GET(request: NextRequest) {
     console.log('[API] ✅ Successfully processed', trackSummaries.length, 'tracks');
     return NextResponse.json({ 
       data: trackSummaries,
-      activePeriod: activePeriod || null,
+      periods: allPeriods,
+      selectedPeriod,
     });
 
   } catch (error) {

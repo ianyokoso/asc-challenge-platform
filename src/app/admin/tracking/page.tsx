@@ -1,16 +1,13 @@
 'use client';
 
-import { useState } from 'react';
-import { format } from 'date-fns';
-import { ko } from 'date-fns/locale';
+import { useState, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { AdminSidebar } from '@/components/layout/admin-sidebar';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
-  ChevronLeft, 
-  ChevronRight, 
   Loader2,
   AlertCircle,
   Calendar,
@@ -25,20 +22,25 @@ import { CertificationTrackingTable } from '@/components/admin/CertificationTrac
 import { CertificationSummaryTable } from '@/components/admin/CertificationSummaryTable';
 import { useAllTracksCertificationData } from '@/hooks/useCertificationTracking';
 import { AdminPageGuard } from '@/components/guards/AdminPageGuard';
+import { useToast } from '@/hooks/use-toast';
 
 /**
  * 관리자 전용 - 트랙별 인증 현황 추적 페이지
  * 
  * 기능:
  * - 모든 트랙의 참여자별 인증 현황을 한눈에 확인
- * - 월별 데이터 탐색
+ * - 기수별 데이터 탐색
  * - 구글 시트 스타일 테이블로 시각화
  * - 인증 완료율 통계
  */
 function CertificationTrackingPageContent() {
-  const today = new Date();
-  const [currentYear, setCurrentYear] = useState(today.getFullYear());
-  const [currentMonth, setCurrentMonth] = useState(today.getMonth() + 1);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { toast } = useToast();
+  
+  // URL 쿼리에서 periodId 읽기
+  const periodIdFromUrl = searchParams.get('periodId');
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string | undefined>(periodIdFromUrl || undefined);
 
   const { 
     data: apiResponse, 
@@ -46,44 +48,29 @@ function CertificationTrackingPageContent() {
     error,
     refetch,
     realtimeStatus 
-  } = useAllTracksCertificationData(currentYear, currentMonth);
+  } = useAllTracksCertificationData(selectedPeriodId);
 
-  // API 응답에서 trackData와 activePeriod 분리
+  // API 응답에서 데이터 분리
   const trackData = apiResponse?.data || null;
-  const activePeriod = apiResponse?.activePeriod || null;
+  const periods = apiResponse?.periods || [];
+  const selectedPeriod = apiResponse?.selectedPeriod || null;
 
-  // 이전 달로 이동
-  const goToPreviousMonth = () => {
-    if (currentMonth === 1) {
-      setCurrentYear(prev => prev - 1);
-      setCurrentMonth(12);
-    } else {
-      setCurrentMonth(prev => prev - 1);
+  // 선택된 기수가 변경되면 URL 업데이트
+  useEffect(() => {
+    if (selectedPeriod && selectedPeriod.id !== periodIdFromUrl) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set('periodId', selectedPeriod.id);
+      router.replace(`/admin/tracking?${params.toString()}`, { scroll: false });
     }
-  };
+  }, [selectedPeriod, periodIdFromUrl, router, searchParams]);
 
-  // 다음 달로 이동
-  const goToNextMonth = () => {
-    if (currentMonth === 12) {
-      setCurrentYear(prev => prev + 1);
-      setCurrentMonth(1);
-    } else {
-      setCurrentMonth(prev => prev + 1);
-    }
+  // 기수 선택 핸들러
+  const handlePeriodChange = (periodId: string) => {
+    setSelectedPeriodId(periodId);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('periodId', periodId);
+    router.replace(`/admin/tracking?${params.toString()}`, { scroll: false });
   };
-
-  // 오늘 날짜로 이동
-  const goToToday = () => {
-    setCurrentYear(today.getFullYear());
-    setCurrentMonth(today.getMonth() + 1);
-  };
-
-  // 현재 월 표시 문자열
-  const currentMonthDisplay = format(
-    new Date(currentYear, currentMonth - 1),
-    'yyyy년 M월',
-    { locale: ko }
-  );
 
   // 전체 통계 계산
   const overallStats = trackData ? {
@@ -112,113 +99,115 @@ function CertificationTrackingPageContent() {
             인증 현황 추적
           </h1>
           <p className="text-body-lg text-gray-600">
-            트랙별 참여자의 인증 현황을 한눈에 확인하세요
+            기수별 트랙 참여자의 인증 현황을 확인하세요
           </p>
-          
-          {/* 활성 기수 정보 */}
-          {activePeriod && (
-            <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg">
-              <Calendar className="h-5 w-5 text-blue-600" />
-              <span className="text-body font-semibold text-blue-900">
-                현재 진행 중인 기수:
-              </span>
-              <Badge className="bg-blue-600 text-white">
-                {activePeriod.term_number}기
-              </Badge>
-              <span className="text-body-sm text-blue-700">
-                {activePeriod.start_date} ~ {activePeriod.end_date}
-              </span>
-            </div>
-          )}
         </div>
 
-        {/* 날짜 네비게이션 및 통계 */}
-        <div className="mb-6 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-          {/* 날짜 네비게이션 */}
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={goToPreviousMonth}
-              className="px-3"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            
-            <div className="flex items-center gap-2 min-w-[180px] justify-center">
-              <Calendar className="h-5 w-5 text-primary" />
-              <span className="text-h4 font-heading text-gray-900">
-                {currentMonthDisplay}
-              </span>
-            </div>
-            
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={goToNextMonth}
-              className="px-3"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-            
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={goToToday}
-            >
-              오늘
-            </Button>
-          </div>
+        {/* 기수 선택 토글 및 통계 */}
+        <div className="mb-6 space-y-4">
+          {/* 기수 선택 토글 */}
+          {periods.length > 0 && (
+            <Card className="p-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5 text-primary" />
+                  <span className="text-body font-semibold text-gray-900">기수 선택:</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {periods.map((period) => (
+                    <Button
+                      key={period.id}
+                      variant={selectedPeriod?.id === period.id ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => handlePeriodChange(period.id)}
+                      className={`
+                        ${selectedPeriod?.id === period.id 
+                          ? 'bg-primary text-primary-foreground' 
+                          : 'hover:bg-gray-100'
+                        }
+                      `}
+                    >
+                      <span className="font-semibold">{period.term_number}기</span>
+                      {period.is_active && (
+                        <Badge className="ml-2 bg-green-500 text-white text-xs">진행중</Badge>
+                      )}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              
+              {/* 선택된 기수 정보 */}
+              {selectedPeriod && (
+                <div className="mt-3 pt-3 border-t border-gray-200">
+                  <div className="flex items-center gap-4 text-body-sm text-gray-600">
+                    <span className="font-semibold text-gray-900">
+                      {selectedPeriod.term_number}기
+                    </span>
+                    <span>
+                      {selectedPeriod.start_date} ~ {selectedPeriod.end_date}
+                    </span>
+                    {selectedPeriod.description && (
+                      <span className="text-gray-500">· {selectedPeriod.description}</span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </Card>
+          )}
 
           {/* 전체 통계 및 실시간 상태 */}
           {overallStats && (
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5 text-gray-400" />
-                <div className="text-body-sm">
-                  <span className="text-gray-600">전체 완료율:</span>
-                  <span className="ml-2 font-semibold text-gray-900">
-                    {overallCompletionRate}%
-                  </span>
-                  <span className="ml-1 text-gray-500">
-                    ({overallStats.totalCertifications}/{overallStats.totalRequired})
-                  </span>
+            <Card className="p-4">
+              <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5 text-gray-400" />
+                  <div className="text-body-sm">
+                    <span className="text-gray-600">전체 완료율:</span>
+                    <span className="ml-2 font-semibold text-gray-900">
+                      {overallCompletionRate}%
+                    </span>
+                    <span className="ml-1 text-gray-500">
+                      ({overallStats.totalCertifications}/{overallStats.totalRequired})
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  {/* 실시간 업데이트 상태 표시 */}
+                  <Badge 
+                    variant="outline" 
+                    className={`flex items-center gap-1.5 ${
+                      realtimeStatus === 'connected' 
+                        ? 'bg-green-50 text-green-700 border-green-200' 
+                        : realtimeStatus === 'connecting'
+                        ? 'bg-yellow-50 text-yellow-700 border-yellow-200'
+                        : realtimeStatus === 'error'
+                        ? 'bg-red-50 text-red-700 border-red-200'
+                        : 'bg-gray-50 text-gray-700 border-gray-200'
+                    }`}
+                  >
+                    {realtimeStatus === 'connected' && <Wifi className="h-3.5 w-3.5" />}
+                    {realtimeStatus === 'connecting' && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                    {realtimeStatus === 'error' && <AlertCircle className="h-3.5 w-3.5" />}
+                    {realtimeStatus === 'disconnected' && <Wifi className="h-3.5 w-3.5 opacity-50" />}
+                    <span className="text-xs">
+                      {realtimeStatus === 'connected' && '실시간 연결됨'}
+                      {realtimeStatus === 'connecting' && '연결 중...'}
+                      {realtimeStatus === 'error' && '연결 오류'}
+                      {realtimeStatus === 'disconnected' && '연결 끊김'}
+                    </span>
+                  </Badge>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => refetch()}
+                  >
+                    새로고침
+                  </Button>
                 </div>
               </div>
-
-              {/* 실시간 업데이트 상태 표시 */}
-              <Badge 
-                variant="outline" 
-                className={`flex items-center gap-1.5 ${
-                  realtimeStatus === 'connected' 
-                    ? 'bg-green-50 text-green-700 border-green-200' 
-                    : realtimeStatus === 'connecting'
-                    ? 'bg-yellow-50 text-yellow-700 border-yellow-200'
-                    : realtimeStatus === 'error'
-                    ? 'bg-red-50 text-red-700 border-red-200'
-                    : 'bg-gray-50 text-gray-700 border-gray-200'
-                }`}
-              >
-                {realtimeStatus === 'connected' && <Wifi className="h-3.5 w-3.5" />}
-                {realtimeStatus === 'connecting' && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                {realtimeStatus === 'error' && <AlertCircle className="h-3.5 w-3.5" />}
-                {realtimeStatus === 'disconnected' && <Wifi className="h-3.5 w-3.5 opacity-50" />}
-                <span className="text-xs">
-                  {realtimeStatus === 'connected' && '실시간 연결됨'}
-                  {realtimeStatus === 'connecting' && '연결 중...'}
-                  {realtimeStatus === 'error' && '연결 오류'}
-                  {realtimeStatus === 'disconnected' && '연결 끊김'}
-                </span>
-              </Badge>
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => refetch()}
-              >
-                새로고침
-              </Button>
-            </div>
+            </Card>
           )}
         </div>
 

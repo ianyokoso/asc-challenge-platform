@@ -12,16 +12,20 @@ import { getTrackCertificationData } from '@/lib/supabase/certification-tracking
  * Supabase Realtime을 사용하여 certifications 테이블의 변경사항을
  * 실시간으로 감지하고 UI를 자동 갱신합니다.
  */
-export function useAllTracksCertificationData(year: number, month: number) {
+export function useAllTracksCertificationData(periodId?: string) {
   const queryClient = useQueryClient();
   const [realtimeStatus, setRealtimeStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('connecting');
   
   const query = useQuery({
-    queryKey: ['certification-tracking', 'all-tracks', year, month],
+    queryKey: ['certification-tracking', 'all-tracks', periodId || 'default'],
     queryFn: async () => {
-      console.log('[Hook] 🚀 Fetching data from API:', { year, month });
+      console.log('[Hook] 🚀 Fetching data from API:', { periodId });
       
-      const response = await fetch(`/api/admin/certification-tracking?year=${year}&month=${month}`);
+      const url = periodId 
+        ? `/api/admin/certification-tracking?periodId=${periodId}`
+        : '/api/admin/certification-tracking';
+      
+      const response = await fetch(url);
       
       if (!response.ok) {
         const error = await response.json();
@@ -31,8 +35,9 @@ export function useAllTracksCertificationData(year: number, month: number) {
       
       const result = await response.json();
       console.log('[Hook] ✅ Received data:', result.data?.length, 'tracks');
-      console.log('[Hook] ✅ Active period:', result.activePeriod);
-      return result; // { data, activePeriod } 전체를 반환
+      console.log('[Hook] ✅ Selected period:', result.selectedPeriod);
+      console.log('[Hook] ✅ Available periods:', result.periods?.length);
+      return result; // { data, periods, selectedPeriod } 전체를 반환
     },
     staleTime: 1000 * 60 * 2, // 2분
     refetchOnWindowFocus: true, // 창 포커스 시 자동 갱신
@@ -42,12 +47,12 @@ export function useAllTracksCertificationData(year: number, month: number) {
   useEffect(() => {
     const supabase = createClient();
     
-    console.log('[Realtime] 📡 Setting up certification tracking subscription', { year, month });
+    console.log('[Realtime] 📡 Setting up certification tracking subscription', { periodId });
     setRealtimeStatus('connecting');
 
     // certifications 테이블의 모든 변경사항(INSERT, UPDATE, DELETE) 구독
     const channel = supabase
-      .channel(`certification-tracking-${year}-${month}`)
+      .channel(`certification-tracking-${periodId || 'default'}`)
       .on(
         'postgres_changes',
         {
@@ -65,7 +70,7 @@ export function useAllTracksCertificationData(year: number, month: number) {
           
           // 데이터 변경 시 해당 쿼리 무효화 → 자동 refetch
           queryClient.invalidateQueries({
-            queryKey: ['certification-tracking', 'all-tracks', year, month],
+            queryKey: ['certification-tracking', 'all-tracks', periodId || 'default'],
           });
         }
       )
@@ -93,7 +98,7 @@ export function useAllTracksCertificationData(year: number, month: number) {
       setRealtimeStatus('disconnected');
       supabase.removeChannel(channel);
     };
-  }, [year, month, queryClient]);
+  }, [periodId, queryClient]);
 
   return { ...query, realtimeStatus };
 }
