@@ -240,10 +240,13 @@ export function CertificationCalendar({
   const monthEnd = endOfMonth(currentDate);
   const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
-  // 앵커일 기준으로 인증 데이터 정규화
+  // 실제 제출일 기준으로 인증 데이터 매핑 (앵커일 정규화 없이)
   console.log('[CertificationCalendar] 📊 Original records:', records);
-  const weeklyCertificationMap = buildWeeklyMap(track, records);
-  console.log('[CertificationCalendar] 🔄 Weekly map:', weeklyCertificationMap);
+  const certificationMap = new Map<string, boolean>();
+  records.forEach(record => {
+    certificationMap.set(record.date, record.certified);
+  });
+  console.log('[CertificationCalendar] 🗺️ Certification map:', certificationMap);
 
   const previousMonth = () => {
     setCurrentDate(subMonths(currentDate, 1));
@@ -257,14 +260,12 @@ export function CertificationCalendar({
     if (track === 'shortform') {
       // 숏폼은 실제 제출일 기준
       const dateStr = format(date, 'yyyy-MM-dd');
-      return weeklyCertificationMap.get(dateStr)?.certified === true;
+      return certificationMap.get(dateStr) === true;
     }
     
-    // 주간 트랙: 앵커일 기준으로 확인
+    // 주간 트랙: 실제 제출일을 앵커일로 매핑하여 확인
     const dateKST = startOfDayKST(date);
     const anchorDate = getAnchorDate(track, dateKST);
-    const anchorKey = format(anchorDate, 'yyyy-MM-dd');
-    const anchorRecord = weeklyCertificationMap.get(anchorKey);
     
     // 현재 날짜가 앵커일인지 확인
     const isAnchorDate = anchorDate.getTime() === dateKST.getTime();
@@ -273,10 +274,7 @@ export function CertificationCalendar({
       date: format(date, 'yyyy-MM-dd'),
       dateKST: format(dateKST, 'yyyy-MM-dd'),
       anchorDate: format(anchorDate, 'yyyy-MM-dd'),
-      anchorKey,
-      isAnchorDate,
-      hasRecord: !!anchorRecord,
-      certified: anchorRecord?.certified
+      isAnchorDate
     });
     
     // 앵커일이 아니면 인증 상태 없음
@@ -284,7 +282,24 @@ export function CertificationCalendar({
       return false;
     }
     
-    return anchorRecord?.certified === true;
+    // 앵커일인 경우: 해당 주에 실제 제출이 있었는지 확인
+    const anchorKey = format(anchorDate, 'yyyy-MM-dd');
+    
+    // 해당 주의 모든 날짜를 확인하여 실제 제출이 있었는지 검사
+    const weekStart = new Date(anchorDate);
+    const weekEnd = new Date(anchorDate);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    
+    for (let d = new Date(weekStart); d <= weekEnd; d.setDate(d.getDate() + 1)) {
+      const dateStr = format(d, 'yyyy-MM-dd');
+      if (certificationMap.get(dateStr) === true) {
+        console.log('[isCertified] ✅ Found certification for week:', dateStr);
+        return true;
+      }
+    }
+    
+    console.log('[isCertified] ❌ No certification found for week:', anchorKey);
+    return false;
   };
 
   const isPastDate = (date: Date): boolean => {
@@ -337,8 +352,19 @@ export function CertificationCalendar({
 
       const totalAnchorDays = anchorDates.size;
       const certifiedAnchorDays = Array.from(anchorDates).filter(anchorKey => {
-        const anchorRecord = weeklyCertificationMap.get(anchorKey);
-        return anchorRecord?.certified === true;
+        // 해당 주에 실제 제출이 있었는지 확인
+        const anchorDate = new Date(anchorKey);
+        const weekStart = new Date(anchorDate);
+        const weekEnd = new Date(anchorDate);
+        weekEnd.setDate(weekEnd.getDate() + 6);
+        
+        for (let d = new Date(weekStart); d <= weekEnd; d.setDate(d.getDate() + 1)) {
+          const dateStr = format(d, 'yyyy-MM-dd');
+          if (certificationMap.get(dateStr) === true) {
+            return true;
+          }
+        }
+        return false;
       }).length;
 
       const completionRate = totalAnchorDays > 0 ? Math.round((certifiedAnchorDays / totalAnchorDays) * 100) : 0;
