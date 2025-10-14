@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createPureClient } from '@/lib/supabase/server';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, parseISO } from 'date-fns';
+import { toKSTMidnight, isBeforeKST, isAfterKST } from '@/lib/utils/date-helpers';
 
 /**
  * 관리자 전용 API: 트랙별 인증 현황 조회
@@ -26,10 +27,42 @@ function isRequiredDate(date: Date, trackType: string): boolean {
   }
 }
 
-// 특정 월의 인증 필요 날짜 목록 생성
-function getRequiredDates(year: number, month: number, trackType: string): string[] {
-  const start = startOfMonth(new Date(year, month - 1));
-  const end = endOfMonth(new Date(year, month - 1));
+// 기수 기간 내의 인증 필요 날짜 목록 생성 (KST 기준)
+function getRequiredDatesInPeriod(
+  year: number, 
+  month: number, 
+  trackType: string,
+  periodStart: string | null,
+  periodEnd: string | null
+): string[] {
+  const monthStart = startOfMonth(new Date(year, month - 1));
+  const monthEnd = endOfMonth(new Date(year, month - 1));
+  
+  // 기수 기간이 설정되어 있으면 해당 기간으로 제한
+  let start = monthStart;
+  let end = monthEnd;
+  
+  if (periodStart && periodEnd) {
+    const cohortStart = toKSTMidnight(periodStart);
+    const cohortEnd = toKSTMidnight(periodEnd);
+    
+    // 기수 시작일이 월 시작일보다 늦으면 기수 시작일 사용
+    if (isAfterKST(cohortStart, monthStart)) {
+      start = cohortStart;
+    }
+    
+    // 기수 종료일이 월 종료일보다 빠르면 기수 종료일 사용
+    if (isBeforeKST(cohortEnd, monthEnd)) {
+      end = cohortEnd;
+    }
+    
+    console.log('[getRequiredDatesInPeriod] 📅 Period constraint:', {
+      monthRange: `${format(monthStart, 'yyyy-MM-dd')} ~ ${format(monthEnd, 'yyyy-MM-dd')}`,
+      cohortRange: `${format(cohortStart, 'yyyy-MM-dd')} ~ ${format(cohortEnd, 'yyyy-MM-dd')}`,
+      actualRange: `${format(start, 'yyyy-MM-dd')} ~ ${format(end, 'yyyy-MM-dd')}`,
+    });
+  }
+  
   const allDates = eachDayOfInterval({ start, end });
   
   return allDates
@@ -70,7 +103,33 @@ export async function GET(request: NextRequest) {
 
     console.log('[API] 🚀 Fetching certification tracking data:', { year, month });
 
-    // 1. 모든 활성 트랙 조회
+    // 1. 활성 기수 정보 조회
+    const { data: activePeriod, error: periodError } = await supabase
+      .from('periods')
+      .select('*')
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (periodError) {
+      console.error('[API] ❌ Error fetching active period:', periodError);
+    }
+
+    let periodStart: string | null = null;
+    let periodEnd: string | null = null;
+
+    if (activePeriod) {
+      periodStart = activePeriod.start_date;
+      periodEnd = activePeriod.end_date;
+      console.log('[API] ✅ Active period found:', {
+        termNumber: activePeriod.term_number,
+        startDate: periodStart,
+        endDate: periodEnd,
+      });
+    } else {
+      console.log('[API] ⚠️ No active period found - showing all dates in month');
+    }
+
+    // 2. 모든 활성 트랙 조회
     const { data: tracks, error: tracksError } = await supabase
       .from('tracks')
       .select('id, name, type')
@@ -83,16 +142,19 @@ export async function GET(request: NextRequest) {
 
     if (!tracks || tracks.length === 0) {
       console.log('[API] ⚠️ No active tracks found');
-      return NextResponse.json({ data: [] });
+      return NextResponse.json({ 
+        data: [],
+        activePeriod: activePeriod || null,
+      });
     }
 
     console.log('[API] ✅ Found tracks:', tracks.length);
 
     const trackSummaries = [];
 
-    // 2. 각 트랙별로 데이터 처리
+    // 3. 각 트랙별로 데이터 처리
     for (const track of tracks) {
-      const requiredDates = getRequiredDates(year, month, track.type);
+      const requiredDates = getRequiredDatesInPeriod(year, month, track.type, periodStart, periodEnd);
 
       // 해당 트랙의 참여자 조회 (SERVICE_ROLE로 모든 데이터 접근 가능)
       const { data: userTracks, error: userTracksError } = await supabase
@@ -206,7 +268,10 @@ export async function GET(request: NextRequest) {
     }
 
     console.log('[API] ✅ Successfully processed', trackSummaries.length, 'tracks');
-    return NextResponse.json({ data: trackSummaries });
+    return NextResponse.json({ 
+      data: trackSummaries,
+      activePeriod: activePeriod || null,
+    });
 
   } catch (error) {
     console.error('[API] ❌ Unexpected error:', error);

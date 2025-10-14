@@ -41,12 +41,16 @@ function CertificationTrackingPageContent() {
   const [currentMonth, setCurrentMonth] = useState(today.getMonth() + 1);
 
   const { 
-    data: trackData, 
+    data: apiResponse, 
     isLoading, 
     error,
     refetch,
     realtimeStatus 
   } = useAllTracksCertificationData(currentYear, currentMonth);
+
+  // API 응답에서 trackData와 activePeriod 분리
+  const trackData = apiResponse?.data || null;
+  const activePeriod = apiResponse?.activePeriod || null;
 
   // 이전 달로 이동
   const goToPreviousMonth = () => {
@@ -110,6 +114,22 @@ function CertificationTrackingPageContent() {
           <p className="text-body-lg text-gray-600">
             트랙별 참여자의 인증 현황을 한눈에 확인하세요
           </p>
+          
+          {/* 활성 기수 정보 */}
+          {activePeriod && (
+            <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg">
+              <Calendar className="h-5 w-5 text-blue-600" />
+              <span className="text-body font-semibold text-blue-900">
+                현재 진행 중인 기수:
+              </span>
+              <Badge className="bg-blue-600 text-white">
+                {activePeriod.term_number}기
+              </Badge>
+              <span className="text-body-sm text-blue-700">
+                {activePeriod.start_date} ~ {activePeriod.end_date}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* 날짜 네비게이션 및 통계 */}

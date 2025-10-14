@@ -31,7 +31,8 @@ export function useAllTracksCertificationData(year: number, month: number) {
       
       const result = await response.json();
       console.log('[Hook] ✅ Received data:', result.data?.length, 'tracks');
-      return result.data;
+      console.log('[Hook] ✅ Active period:', result.activePeriod);
+      return result; // { data, activePeriod } 전체를 반환
     },
     staleTime: 1000 * 60 * 2, // 2분
     refetchOnWindowFocus: true, // 창 포커스 시 자동 갱신
