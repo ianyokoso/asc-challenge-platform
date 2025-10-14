@@ -38,9 +38,11 @@ function CertificationTrackingPageContent() {
   const searchParams = useSearchParams();
   const { toast } = useToast();
   
-  // URL 쿼리에서 periodId 읽기
+  // URL 쿼리에서 periodId와 track 읽기
   const periodIdFromUrl = searchParams.get('periodId');
+  const trackFromUrl = searchParams.get('track');
   const [selectedPeriodId, setSelectedPeriodId] = useState<string | undefined>(periodIdFromUrl || undefined);
+  const [selectedTrack, setSelectedTrack] = useState<string | undefined>(trackFromUrl || undefined);
 
   const { 
     data: apiResponse, 
@@ -239,7 +241,20 @@ function CertificationTrackingPageContent() {
 
         {/* 트랙별 탭 */}
         {!isLoading && !error && trackData && (
-          <Tabs defaultValue="all" className="w-full">
+          <Tabs 
+            defaultValue={selectedTrack || "all"} 
+            className="w-full"
+            onValueChange={(value) => {
+              setSelectedTrack(value);
+              const params = new URLSearchParams(searchParams.toString());
+              if (value === "all") {
+                params.delete('track');
+              } else {
+                params.set('track', value);
+              }
+              router.replace(`/admin/tracking?${params.toString()}`, { scroll: false });
+            }}
+          >
             <TabsList className="grid w-full grid-cols-5 mb-6">
               <TabsTrigger value="all" className="flex items-center gap-2">
                 <BarChart3 className="h-4 w-4" />
