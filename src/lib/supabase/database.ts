@@ -224,7 +224,22 @@ export async function getUserTracks(userId: string): Promise<UserTrack[]> {
   }
 
   console.log('✅ [getUserTracks] Success:', data?.length || 0, 'tracks found');
-  return data || [];
+  
+  // 트랙 순서 정렬: 숏폼, 롱폼, 빌더, 세일즈
+  const trackOrder: Record<string, number> = {
+    'short-form': 1,
+    'long-form': 2,
+    'builder': 3,
+    'sales': 4,
+  };
+  
+  const sortedData = (data || []).sort((a, b) => {
+    const orderA = trackOrder[a.track?.type || ''] || 999;
+    const orderB = trackOrder[b.track?.type || ''] || 999;
+    return orderA - orderB;
+  });
+  
+  return sortedData;
 }
 
 // ============================================
