@@ -72,47 +72,6 @@ function getAnchorDate(track: TrackType, dateKST: Date): Date {
   return dateKST;
 }
 
-/**
- * 인증 데이터를 주간 앵커일 기준으로 정규화
- * @param track - 트랙 타입
- * @param certifications - 인증 데이터 배열
- * @returns 앵커일을 키로 하는 Map
- */
-function buildWeeklyMap(track: TrackType, certifications: CertificationRecord[]): Map<string, CertificationRecord> {
-  const weeklyMap = new Map<string, CertificationRecord>();
-  
-  console.log('[buildWeeklyMap] 🏗️ Building weekly map for track:', track, 'with certifications:', certifications);
-  
-  if (track === 'shortform') {
-    // 숏폼은 앵커일 정규화 없음
-    certifications.forEach(cert => {
-      weeklyMap.set(cert.date, cert);
-    });
-    console.log('[buildWeeklyMap] 📝 Short-form map:', weeklyMap);
-    return weeklyMap;
-  }
-  
-  // 주간 트랙: 앵커일 기준으로 정규화
-  certifications.forEach(cert => {
-    const certDate = startOfDayKST(cert.date);
-    const anchorDate = getAnchorDate(track, certDate);
-    const anchorKey = format(anchorDate, 'yyyy-MM-dd');
-    
-    console.log('[buildWeeklyMap] 🔄 Mapping:', {
-      originalDate: cert.date,
-      certDate: format(certDate, 'yyyy-MM-dd'),
-      anchorDate: format(anchorDate, 'yyyy-MM-dd'),
-      anchorKey,
-      certified: cert.certified
-    });
-    
-    // 같은 앵커일에 여러 건이면 최신 것 우선 (여기서는 단순히 덮어쓰기)
-    weeklyMap.set(anchorKey, cert);
-  });
-  
-  console.log('[buildWeeklyMap] ✅ Final weekly map:', weeklyMap);
-  return weeklyMap;
-}
 
 /**
  * Certification record type
@@ -240,13 +199,56 @@ export function CertificationCalendar({
   const monthEnd = endOfMonth(currentDate);
   const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
-  // 실제 제출일 기준으로 인증 데이터 매핑 (앵커일 정규화 없이)
+  // ✅ 공통: KST 키 유틸
+  const dateKeyKST = (d: Date | string) =>
+    format(startOfDayKST(d), 'yyyy-MM-dd');
+
+  // 1) 맵/셋 생성 (records = 제출 레코드 배열)
+  const certifiedDaySet = new Set<string>();     // 숏폼: 해당 '그날' 키
+  const anchorCertifiedSet = new Set<string>();  // 주간 트랙: '앵커일' 키
+
   console.log('[CertificationCalendar] 📊 Original records:', records);
-  const certificationMap = new Map<string, boolean>();
-  records.forEach(record => {
-    certificationMap.set(record.date, record.certified);
+  
+  records.forEach((r) => {
+    if (!r.certified) return; // 인증되지 않은 레코드는 무시
+    
+    const rec = startOfDayKST(r.date);
+    if (track === 'shortform') {
+      certifiedDaySet.add(dateKeyKST(rec));
+    } else {
+      // ➜ 레코드마다 '그 레코드가 속하는 앵커일'을 계산해 해당 앵커일 키에 체크
+      const anchor = getAnchorDate(track, rec); // longform/builder: 일요일, sales: 화요일
+      anchorCertifiedSet.add(dateKeyKST(anchor));
+    }
   });
-  console.log('[CertificationCalendar] 🗺️ Certification map:', certificationMap);
+  
+  console.log('[CertificationCalendar] 🗺️ Certified day set:', certifiedDaySet);
+  console.log('[CertificationCalendar] 🎯 Anchor certified set:', anchorCertifiedSet);
+
+  // 2) 셀 상태 판단 헬퍼 함수들
+  const isAnchorDay = (track: string, date: Date) => {
+    const d = startOfDayKST(date);
+    const anchorOfD = getAnchorDate(track, d);
+    return dateKeyKST(anchorOfD) === dateKeyKST(d);
+  };
+
+  const isActivatable = (date: Date): boolean => {
+    // 기수 범위 체크(필수)
+    if (!isWithinCohort(date, activePeriod)) return false;
+
+    const dow = getKSTDay(date); // 0=일 1=월 ... 2=화 ... 6=토
+
+    if (track === 'shortform') {
+      // 월~금만 활성
+      return dow >= 1 && dow <= 5;
+    }
+    if (track === 'sales') {
+      // 앵커일=화요일만 활성
+      return dow === 2;
+    }
+    // longform, builder: 앵커일=일요일만 활성
+    return dow === 0;
+  };
 
   const previousMonth = () => {
     setCurrentDate(subMonths(currentDate, 1));
@@ -257,49 +259,18 @@ export function CertificationCalendar({
   };
 
   const isCertified = (date: Date): boolean => {
+    const key = dateKeyKST(date);
+
     if (track === 'shortform') {
-      // 숏폼은 실제 제출일 기준
-      const dateStr = format(date, 'yyyy-MM-dd');
-      return certificationMap.get(dateStr) === true;
+      // 그날 제출 여부
+      return certifiedDaySet.has(key);
     }
-    
-    // 주간 트랙: 실제 제출일을 앵커일로 매핑하여 확인
-    const dateKST = startOfDayKST(date);
-    const anchorDate = getAnchorDate(track, dateKST);
-    
-    // 현재 날짜가 앵커일인지 확인
-    const isAnchorDate = anchorDate.getTime() === dateKST.getTime();
-    
-    console.log('[isCertified] 🔍 Checking certification for:', {
-      date: format(date, 'yyyy-MM-dd'),
-      dateKST: format(dateKST, 'yyyy-MM-dd'),
-      anchorDate: format(anchorDate, 'yyyy-MM-dd'),
-      isAnchorDate
-    });
-    
-    // 앵커일이 아니면 인증 상태 없음
-    if (!isAnchorDate) {
-      return false;
-    }
-    
-    // 앵커일인 경우: 해당 주에 실제 제출이 있었는지 확인
-    const anchorKey = format(anchorDate, 'yyyy-MM-dd');
-    
-    // 해당 주의 모든 날짜를 확인하여 실제 제출이 있었는지 검사
-    const weekStart = new Date(anchorDate);
-    const weekEnd = new Date(anchorDate);
-    weekEnd.setDate(weekEnd.getDate() + 6);
-    
-    for (let d = new Date(weekStart); d <= weekEnd; d.setDate(d.getDate() + 1)) {
-      const dateStr = format(d, 'yyyy-MM-dd');
-      if (certificationMap.get(dateStr) === true) {
-        console.log('[isCertified] ✅ Found certification for week:', dateStr);
-        return true;
-      }
-    }
-    
-    console.log('[isCertified] ❌ No certification found for week:', anchorKey);
-    return false;
+
+    // 주간 트랙: 앵커일만 완료 판단, 그 외는 중립(비활성)
+    if (!isAnchorDay(track, date)) return false;
+
+    // 앵커일 셀에 '해당 주에 제출이 있었는가?' → 미리 만든 집합으로 O(1)
+    return anchorCertifiedSet.has(key);
   };
 
   const isPastDate = (date: Date): boolean => {
@@ -313,68 +284,21 @@ export function CertificationCalendar({
     }
   };
 
-  // 통계 계산 (앵커일 기준)
+  // 통계 계산 (새로운 효율적 로직)
   const calculateStats = () => {
-    if (track === 'shortform') {
-      // 숏폼: 기존 로직 (평일만)
-      const activeDates = daysInMonth.filter(date => {
-        const withinCohort = isWithinCohort(date, activePeriod);
-        const isWeekendDate = isWeekend(date);
-        return withinCohort && !isWeekendDate;
-      });
+    // 활성화 가능한 날짜들만 필터링
+    const activatableDates = daysInMonth.filter(date => isActivatable(date));
+    
+    // 인증된 날짜 개수 계산
+    const certifiedCount = activatableDates.filter(date => isCertified(date)).length;
+    const totalActiveDays = activatableDates.length;
+    const completionRate = totalActiveDays > 0 ? Math.round((certifiedCount / totalActiveDays) * 100) : 0;
 
-      const certifiedCount = activeDates.filter(date => isCertified(date)).length;
-      const totalActiveDays = activeDates.length;
-      const completionRate = totalActiveDays > 0 ? Math.round((certifiedCount / totalActiveDays) * 100) : 0;
-
-      return {
-        certified: certifiedCount,
-        total: totalActiveDays,
-        rate: completionRate,
-      };
-    } else {
-      // 주간 트랙: 앵커일 기준으로 계산
-      const anchorDates = new Set<string>();
-      
-      daysInMonth.forEach(date => {
-        const withinCohort = isWithinCohort(date, activePeriod);
-        if (withinCohort) {
-          const dateKST = startOfDayKST(date);
-          const anchorDate = getAnchorDate(track, dateKST);
-          const isAnchorDate = anchorDate.getTime() === dateKST.getTime();
-          
-          if (isAnchorDate) {
-            const anchorKey = format(anchorDate, 'yyyy-MM-dd');
-            anchorDates.add(anchorKey);
-          }
-        }
-      });
-
-      const totalAnchorDays = anchorDates.size;
-      const certifiedAnchorDays = Array.from(anchorDates).filter(anchorKey => {
-        // 해당 주에 실제 제출이 있었는지 확인
-        const anchorDate = new Date(anchorKey);
-        const weekStart = new Date(anchorDate);
-        const weekEnd = new Date(anchorDate);
-        weekEnd.setDate(weekEnd.getDate() + 6);
-        
-        for (let d = new Date(weekStart); d <= weekEnd; d.setDate(d.getDate() + 1)) {
-          const dateStr = format(d, 'yyyy-MM-dd');
-          if (certificationMap.get(dateStr) === true) {
-            return true;
-          }
-        }
-        return false;
-      }).length;
-
-      const completionRate = totalAnchorDays > 0 ? Math.round((certifiedAnchorDays / totalAnchorDays) * 100) : 0;
-
-      return {
-        certified: certifiedAnchorDays,
-        total: totalAnchorDays,
-        rate: completionRate,
-      };
-    }
+    return {
+      certified: certifiedCount,
+      total: totalActiveDays,
+      rate: completionRate,
+    };
   };
 
   const stats = calculateStats();
@@ -439,24 +363,8 @@ export function CertificationCalendar({
           const withinCohort = isWithinCohort(date, activePeriod);
           const isCurrentMonth = isSameMonth(date, currentDate);
 
-          // 비활성 조건 결정
-          let isInactive = false;
-          
-          if (!withinCohort) {
-            // 기수 기간 외
-            isInactive = true;
-          } else if (track === 'shortform' && isWeekend(date)) {
-            // 숏폼 주말
-            isInactive = true;
-          } else if (track !== 'shortform') {
-            // 주간 트랙: 앵커일이 아니면 비활성
-            const dateKST = startOfDayKST(date);
-            const anchorDate = getAnchorDate(track, dateKST);
-            const isAnchorDate = anchorDate.getTime() === dateKST.getTime();
-            if (!isAnchorDate) {
-              isInactive = true;
-            }
-          }
+          // 비활성 조건 결정: isActivatable 함수 사용
+          const isInactive = !isActivatable(date);
 
           if (isInactive) {
             return (
@@ -554,24 +462,8 @@ export function CertificationCalendar({
                   const activeDay = isActiveDayForTrack(track, date);
                   const withinCohort = isWithinCohort(date, activePeriod);
 
-                  // 비활성 조건 결정
-                  let isInactive = false;
-                  
-                  if (!withinCohort) {
-                    // 기수 기간 외
-                    isInactive = true;
-                  } else if (track === 'shortform' && isWeekend(date)) {
-                    // 숏폼 주말
-                    isInactive = true;
-                  } else if (track !== 'shortform') {
-                    // 주간 트랙: 앵커일이 아니면 비활성
-                    const dateKST = startOfDayKST(date);
-                    const anchorDate = getAnchorDate(track, dateKST);
-                    const isAnchorDate = anchorDate.getTime() === dateKST.getTime();
-                    if (!isAnchorDate) {
-                      isInactive = true;
-                    }
-                  }
+                  // 비활성 조건 결정: isActivatable 함수 사용
+                  const isInactive = !isActivatable(date);
 
                   if (isInactive) {
                     return (
