@@ -74,12 +74,12 @@ export interface CertificationCalendarProps {
 }
 
 /**
- * Check if date is within active period
+ * Check if date is within active period (기수 범위)
  * @param date Date to check
  * @param activePeriod Active period information
  * @returns true if the date is within the active period
  */
-const isWithinActivePeriod = (date: Date, activePeriod?: ActivePeriod | null): boolean => {
+const isWithinCohort = (date: Date, activePeriod?: ActivePeriod | null): boolean => {
   if (!activePeriod) return true; // If no active period, all dates are valid
 
   const certDate = toKSTMidnight(date);
@@ -87,6 +87,16 @@ const isWithinActivePeriod = (date: Date, activePeriod?: ActivePeriod | null): b
   const endDate = toKSTMidnight(activePeriod.end_date);
 
   return certDate.getTime() >= startDate.getTime() && certDate.getTime() <= endDate.getTime();
+};
+
+/**
+ * Check if date is weekend (Saturday or Sunday)
+ * @param date Date to check
+ * @returns true if the date is weekend
+ */
+const isWeekend = (date: Date): boolean => {
+  const dayOfWeek = date.getDay(); // 0 = Sunday, 6 = Saturday
+  return dayOfWeek === 0 || dayOfWeek === 6;
 };
 
 /**
@@ -165,13 +175,39 @@ export function CertificationCalendar({
     }
   };
 
+  // 통계 계산 (비활성 날짜 제외)
+  const calculateStats = () => {
+    const activeDates = daysInMonth.filter(date => {
+      const withinCohort = isWithinCohort(date, activePeriod);
+      const isWeekendDate = isWeekend(date);
+      return withinCohort && !(track === 'shortform' && isWeekendDate);
+    });
+
+    const certifiedCount = activeDates.filter(date => isCertified(date)).length;
+    const totalActiveDays = activeDates.length;
+    const completionRate = totalActiveDays > 0 ? Math.round((certifiedCount / totalActiveDays) * 100) : 0;
+
+    return {
+      certified: certifiedCount,
+      total: totalActiveDays,
+      rate: completionRate,
+    };
+  };
+
+  const stats = calculateStats();
+
   return (
     <div className="w-full">
       {/* Calendar Header */}
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-h4 font-heading text-gray-900">
-          {format(currentDate, 'yyyy년 M월', { locale: ko })}
-        </h2>
+        <div>
+          <h2 className="text-h4 font-heading text-gray-900">
+            {format(currentDate, 'yyyy년 M월', { locale: ko })}
+          </h2>
+          <p className="text-body-sm text-gray-600 mt-1">
+            이번 달 진행률: {stats.certified}/{stats.total} ({stats.rate}%)
+          </p>
+        </div>
         <div className="flex gap-2">
           <Button
             variant="outline"
@@ -217,8 +253,33 @@ export function CertificationCalendar({
           const today = isToday(date);
           const past = isPastDate(date);
           const activeDay = isActiveDayForTrack(track, date);
-          const withinPeriod = isWithinActivePeriod(date, activePeriod);
+          const withinCohort = isWithinCohort(date, activePeriod);
           const isCurrentMonth = isSameMonth(date, currentDate);
+
+          // 비활성 조건: 기수 기간 외 OR 숏폼 주말
+          const isInactive = !withinCohort || (track === 'shortform' && isWeekend(date));
+
+          if (isInactive) {
+            return (
+              <div
+                key={date.toISOString()}
+                className={`aspect-square p-2 rounded-lg border-2 transition-all border-gray-200 bg-gray-100 text-gray-400 cursor-default ${
+                  !isCurrentMonth ? 'opacity-40' : ''
+                }`}
+                aria-label={`${format(date, 'M월 d일')} 비활성`}
+              >
+                <div className="flex flex-col items-center justify-center h-full gap-1">
+                  <span
+                    className={`text-body-sm font-semibold ${
+                      !isCurrentMonth ? 'text-gray-400' : 'text-gray-400'
+                    }`}
+                  >
+                    {format(date, 'd')}
+                  </span>
+                </div>
+              </div>
+            );
+          }
 
           return (
             <button
@@ -232,8 +293,6 @@ export function CertificationCalendar({
               } ${
                 certified
                   ? 'bg-accent/10 hover:bg-accent/20 cursor-pointer'
-                  : !withinPeriod
-                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                   : !activeDay
                   ? 'bg-gray-100 text-gray-400'
                   : past && activeDay
@@ -242,7 +301,7 @@ export function CertificationCalendar({
               } ${
                 !isCurrentMonth ? 'opacity-40' : ''
               }`}
-              aria-label={`${format(date, 'M월 d일')} ${certified ? '인증 완료' : !withinPeriod ? '기수 기간 외' : '미인증'}`}
+              aria-label={`${format(date, 'M월 d일')} ${certified ? '인증 완료' : '미인증'}`}
             >
               <div className="flex flex-col items-center justify-center h-full gap-1">
                 <span
@@ -295,7 +354,26 @@ export function CertificationCalendar({
                   const today = isToday(date);
                   const past = isPastDate(date);
                   const activeDay = isActiveDayForTrack(track, date);
-                  const withinPeriod = isWithinActivePeriod(date, activePeriod);
+                  const withinCohort = isWithinCohort(date, activePeriod);
+
+                  // 비활성 조건: 기수 기간 외 OR 숏폼 주말
+                  const isInactive = !withinCohort || (track === 'shortform' && isWeekend(date));
+
+                  if (isInactive) {
+                    return (
+                      <div
+                        key={date.toISOString()}
+                        className="aspect-square p-1 rounded-lg border-2 transition-all border-gray-200 bg-gray-100 text-gray-400 cursor-default"
+                        aria-label={`${format(date, 'M월 d일')} 비활성`}
+                      >
+                        <div className="flex flex-col items-center justify-center h-full gap-0.5">
+                          <span className="text-body-xs font-semibold text-gray-400">
+                            {format(date, 'd')}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  }
 
                   return (
                     <button
@@ -309,8 +387,6 @@ export function CertificationCalendar({
                       } ${
                         certified
                           ? 'bg-accent/10 hover:bg-accent/20 cursor-pointer'
-                          : !withinPeriod
-                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                           : !activeDay
                           ? 'bg-gray-100 text-gray-400'
                           : past && activeDay
