@@ -2,6 +2,7 @@
 
 import { addDays, startOfWeek, nextSunday, nextTuesday, isAfter, startOfDay } from 'date-fns';
 import { TrackType } from '../supabase/types';
+import { getNow } from './demo-time';
 
 /**
  * 주간 트랙(Long-form, Builder, Sales)의 다음 인증일을 계산
@@ -17,7 +18,7 @@ import { TrackType } from '../supabase/types';
  * - 5일(일요일) 인증 완료 후 6일(월요일) 00:01부터 12일 인증 가능
  */
 export function getNextCertificationDate(trackType: TrackType, lastCertificationDate?: Date): Date {
-  const today = startOfDay(new Date());
+  const today = startOfDay(getNow());
   
   // Short-form은 매일 인증
   if (trackType === 'short-form') {
@@ -80,7 +81,7 @@ export function canCertifyForDate(
   targetDate: Date,
   lastCertificationDate?: Date
 ): boolean {
-  const today = startOfDay(new Date());
+  const today = startOfDay(getNow());
   const target = startOfDay(targetDate);
   
   // Short-form: 오늘 또는 과거 날짜만 인증 가능
@@ -110,7 +111,7 @@ export function getDefaultCertificationDate(
   trackType: TrackType,
   lastCertificationDate?: Date
 ): Date {
-  const today = startOfDay(new Date());
+  const today = startOfDay(getNow());
   
   // Short-form은 항상 오늘
   if (trackType === 'short-form') {

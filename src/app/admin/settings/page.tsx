@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -41,7 +41,22 @@ import {
   CalendarDays,
   Edit,
   Loader2,
+  PlayCircle,
+  PauseCircle,
+  SkipForward,
+  RotateCcw,
+  AlertTriangle,
 } from 'lucide-react';
+import {
+  getNow,
+  isDemoMode,
+  setDemoMode,
+  getDemoOffset,
+  addDay,
+  subtractDay,
+  resetToToday,
+  setDaysFromNow,
+} from '@/lib/utils/demo-time';
 
 // Form schema for period update
 const periodUpdateSchema = z.object({
@@ -71,6 +86,23 @@ export default function AdminSettingsPage() {
   );
   const [showPeriodDialog, setShowPeriodDialog] = useState(false);
   const [isUpdatingPeriod, setIsUpdatingPeriod] = useState(false);
+  
+  // Demo mode state
+  const [demoModeEnabled, setDemoModeEnabled] = useState(false);
+  const [demoOffset, setDemoOffsetState] = useState(0);
+  const [currentDemoTime, setCurrentDemoTime] = useState<Date>(new Date());
+
+  // Initialize demo mode state
+  useEffect(() => {
+    setDemoModeEnabled(isDemoMode());
+    setDemoOffsetState(getDemoOffset());
+    setCurrentDemoTime(getNow());
+  }, []);
+
+  // Update current demo time when offset changes
+  useEffect(() => {
+    setCurrentDemoTime(getNow());
+  }, [demoOffset]);
 
   // Form for period update
   const periodForm = useForm<PeriodUpdateFormValues>({
@@ -142,6 +174,66 @@ export default function AdminSettingsPage() {
     } finally {
       setIsUpdatingPeriod(false);
     }
+  };
+
+  // Demo mode handlers
+  const handleToggleDemoMode = () => {
+    const newState = !demoModeEnabled;
+    setDemoMode(newState);
+    setDemoModeEnabled(newState);
+    
+    if (newState) {
+      toast({
+        title: '데모 모드 활성화',
+        description: '시간 시뮬레이션 모드가 활성화되었습니다.',
+      });
+    } else {
+      toast({
+        title: '데모 모드 비활성화',
+        description: '실제 시간으로 돌아왔습니다.',
+      });
+      setDemoOffsetState(0);
+      setCurrentDemoTime(new Date());
+    }
+  };
+
+  const handleAddDay = () => {
+    addDay();
+    const newOffset = getDemoOffset();
+    setDemoOffsetState(newOffset);
+    toast({
+      title: '다음날로 이동',
+      description: `${format(getNow(), 'yyyy년 MM월 dd일 (EEE)', { locale: ko })}`,
+    });
+  };
+
+  const handleSubtractDay = () => {
+    subtractDay();
+    const newOffset = getDemoOffset();
+    setDemoOffsetState(newOffset);
+    toast({
+      title: '이전날로 이동',
+      description: `${format(getNow(), 'yyyy년 MM월 dd일 (EEE)', { locale: ko })}`,
+    });
+  };
+
+  const handleResetToToday = () => {
+    resetToToday();
+    setDemoOffsetState(0);
+    setCurrentDemoTime(new Date());
+    toast({
+      title: '오늘로 리셋',
+      description: '실제 오늘 날짜로 돌아왔습니다.',
+    });
+  };
+
+  const handleSetDaysFromNow = (days: number) => {
+    setDaysFromNow(days);
+    setDemoOffsetState(days);
+    toast({
+      title: `${days > 0 ? '+' : ''}${days}일 이동`,
+      description: `${format(getNow(), 'yyyy년 MM월 dd일 (EEE)', { locale: ko })}`,
+    });
   };
 
   return (
@@ -229,6 +321,176 @@ export default function AdminSettingsPage() {
                 <p className="text-body-sm text-yellow-800">
                   ⚠️ 활성 기수가 없습니다. 전체 리셋을 통해 새로운 기수를 생성하세요.
                 </p>
+              </div>
+            )}
+          </Card>
+
+          {/* Demo Mode - Time Simulation */}
+          <Card className="p-6 border-2 border-orange-200 bg-orange-50/50">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="bg-orange-100 rounded-lg p-2">
+                <PlayCircle className="h-5 w-5 text-orange-600" />
+              </div>
+              <div className="flex-1">
+                <h2 className="text-h4 font-heading text-gray-900">
+                  🧪 데모 모드 (시간 시뮬레이션)
+                </h2>
+                <p className="text-body-sm text-gray-600 mt-1">
+                  시간을 조작하여 다음날 시나리오를 테스트합니다
+                </p>
+              </div>
+              <Button
+                variant={demoModeEnabled ? "destructive" : "default"}
+                onClick={handleToggleDemoMode}
+                className="flex items-center gap-2"
+              >
+                {demoModeEnabled ? (
+                  <>
+                    <PauseCircle className="h-4 w-4" />
+                    비활성화
+                  </>
+                ) : (
+                  <>
+                    <PlayCircle className="h-4 w-4" />
+                    활성화
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {demoModeEnabled ? (
+              <div className="space-y-6">
+                {/* Current Demo Time Display */}
+                <div className="p-4 bg-white rounded-lg border-2 border-orange-300">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-body-sm font-medium text-gray-700">
+                      현재 데모 시간
+                    </span>
+                    <Badge className="bg-orange-100 text-orange-700">
+                      {demoOffset > 0 ? `+${demoOffset}일` : demoOffset < 0 ? `${demoOffset}일` : '오늘'}
+                    </Badge>
+                  </div>
+                  <div className="text-h3 font-bold text-gray-900">
+                    {format(currentDemoTime, 'yyyy년 MM월 dd일 (EEEE)', { locale: ko })}
+                  </div>
+                  <div className="text-body-sm text-gray-500 mt-1">
+                    실제 시간: {format(new Date(), 'yyyy년 MM월 dd일', { locale: ko })}
+                  </div>
+                </div>
+
+                {/* Time Control Buttons */}
+                <div className="grid grid-cols-2 gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={handleSubtractDay}
+                    className="flex items-center justify-center gap-2"
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                    -1일 (이전날)
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleAddDay}
+                    className="flex items-center justify-center gap-2"
+                  >
+                    <SkipForward className="h-4 w-4" />
+                    +1일 (다음날)
+                  </Button>
+                </div>
+
+                {/* Quick Jump Buttons */}
+                <div className="space-y-2">
+                  <Label className="text-body-sm font-medium text-gray-700">
+                    빠른 이동
+                  </Label>
+                  <div className="grid grid-cols-4 gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleSetDaysFromNow(7)}
+                    >
+                      +7일
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleSetDaysFromNow(14)}
+                    >
+                      +14일
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleSetDaysFromNow(30)}
+                    >
+                      +30일
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleSetDaysFromNow(365)}
+                    >
+                      +365일
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Reset Button */}
+                <Button
+                  variant="secondary"
+                  onClick={handleResetToToday}
+                  className="w-full flex items-center justify-center gap-2"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  오늘로 리셋
+                </Button>
+
+                {/* Warning Notice */}
+                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                    <div className="text-body-sm text-yellow-800">
+                      <p className="font-semibold mb-1">⚠️ 주의사항</p>
+                      <ul className="list-disc list-inside space-y-1">
+                        <li>데모 모드는 <strong>테스트 전용</strong>입니다</li>
+                        <li>실제 데이터베이스는 변경되지 않습니다</li>
+                        <li>시간 변경은 <strong>현재 브라우저에만</strong> 적용됩니다</li>
+                        <li>페이지를 새로고침하면 변경사항이 유지됩니다</li>
+                        <li>테스트 완료 후 반드시 비활성화하세요</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                {/* How to Use */}
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-body-sm text-blue-800 font-semibold mb-2">
+                    💡 사용 방법
+                  </p>
+                  <ol className="list-decimal list-inside space-y-1 text-body-sm text-blue-700">
+                    <li>데모 모드를 활성화합니다</li>
+                    <li>"다음날" 버튼을 클릭하여 시간을 이동합니다</li>
+                    <li>인증 페이지에서 기간 검증을 테스트합니다</li>
+                    <li>배너 색상 변화를 확인합니다</li>
+                    <li>테스트 완료 후 "비활성화" 버튼을 클릭합니다</li>
+                  </ol>
+                </div>
+              </div>
+            ) : (
+              <div className="p-6 bg-white rounded-lg border border-gray-200 text-center">
+                <PlayCircle className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                <p className="text-body text-gray-600 mb-4">
+                  데모 모드를 활성화하면 시간을 조작하여<br />
+                  다음날 시나리오를 테스트할 수 있습니다.
+                </p>
+                <Button
+                  variant="outline"
+                  onClick={handleToggleDemoMode}
+                  className="flex items-center gap-2 mx-auto"
+                >
+                  <PlayCircle className="h-4 w-4" />
+                  데모 모드 활성화
+                </Button>
               </div>
             )}
           </Card>

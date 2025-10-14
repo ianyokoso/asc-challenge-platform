@@ -24,6 +24,7 @@ import { useActivePeriod, isWithinActivePeriod } from '@/hooks/useActivePeriod';
 import { submitCertification, getCertificationByDateAndTrack, getLastCertificationDate } from '@/lib/supabase/database';
 import { format, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import { getNow } from '@/lib/utils/demo-time';
 import { TrackType } from '@/lib/supabase/types';
 import { 
   getDefaultCertificationDate, 

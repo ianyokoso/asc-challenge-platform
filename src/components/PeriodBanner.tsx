@@ -5,6 +5,7 @@ import { format, differenceInDays } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { CalendarDays, AlertCircle, Clock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { getNow } from '@/lib/utils/demo-time';
 
 export function PeriodBanner() {
   const { data: activePeriod, isLoading } = useActivePeriod();
@@ -14,7 +15,7 @@ export function PeriodBanner() {
     return null;
   }
 
-  const today = new Date();
+  const today = getNow(); // 데모 모드 고려
   const endDate = new Date(activePeriod.end_date);
   const daysRemaining = differenceInDays(endDate, today);
   
