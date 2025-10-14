@@ -12,13 +12,15 @@ import { toKSTMidnight, isAfterKST, isBeforeKST } from './date-helpers';
  * - Long-form, Builder: 일요일 마감 (다음 주 일요일)
  * - Sales: 화요일 마감 (다음 주 화요일)
  * - 인증일 1주일 전부터 미리 인증 가능
+ * - Sales 트랙은 certDate 기준으로 주차를 계산 (today 기준이 아님)
  */
-export function getNextCertificationDate(trackType: TrackType, lastCertificationDate?: Date): Date {
+export function getNextCertificationDate(trackType: TrackType, lastCertificationDate?: Date, certDate?: Date): Date {
   const today = toKSTMidnight(getNow());
+  const targetDate = certDate ? toKSTMidnight(certDate) : today;
   
   // Short-form은 매일 인증
   if (trackType === 'short-form') {
-    return today;
+    return targetDate;
   }
   
   // 마지막 인증일이 있는 경우
@@ -39,29 +41,33 @@ export function getNextCertificationDate(trackType: TrackType, lastCertification
   }
   
   // 마지막 인증일이 없는 경우 (첫 인증)
-  // Long-form, Builder: 이번 주 또는 다음 주 일요일
+  // Long-form, Builder: certDate 기준 이번 주 또는 다음 주 일요일
   if (trackType === 'long-form' || trackType === 'builder') {
-    const thisSunday = nextSunday(addDays(today, -1));
+    const thisSunday = nextSunday(addDays(targetDate, -1));
     
-    if (isAfterKST(today, thisSunday) || today.getTime() === thisSunday.getTime()) {
-      return nextSunday(today);
+    if (isAfterKST(targetDate, thisSunday) || targetDate.getTime() === thisSunday.getTime()) {
+      return nextSunday(targetDate);
     }
     
     return thisSunday;
   }
   
-  // Sales: 이번 주 또는 다음 주 화요일
+  // Sales: certDate 기준 이번 주 또는 다음 주 화요일
   if (trackType === 'sales') {
-    const thisTuesday = nextTuesday(addDays(today, -1));
-    
-    if (isAfterKST(today, thisTuesday) || today.getTime() === thisTuesday.getTime()) {
-      return nextTuesday(today);
+    // certDate가 화요일인 경우, 해당 화요일을 반환 (당일 인증 가능)
+    if (targetDate.getDay() === 2) {
+      return targetDate;
     }
     
-    return thisTuesday;
+    // certDate가 화요일이 아닌 경우, 해당 주의 화요일을 찾기
+    const dayOfWeek = targetDate.getDay();
+    const daysUntilTuesday = (2 - dayOfWeek + 7) % 7;
+    const thisWeekTuesday = addDays(targetDate, daysUntilTuesday);
+    
+    return thisWeekTuesday;
   }
   
-  return today;
+  return targetDate;
 }
 
 /**
@@ -72,6 +78,7 @@ export function getNextCertificationDate(trackType: TrackType, lastCertification
  * 2. 기수 기간 내의 날짜는 모두 인증 가능 (isWithinActivePeriod에서 검증)
  * 3. Short-form: 매일 가능
  * 4. Long-form, Builder, Sales: 기수 기간 내 모든 날짜 가능
+ * 5. Sales: 화요일 당일 인증 가능
  */
 export function canCertifyForDate(
   trackType: TrackType,
@@ -86,6 +93,13 @@ export function canCertifyForDate(
     return false;
   }
   
+  // Sales 트랙의 경우 화요일 당일 인증 가능
+  if (trackType === 'sales') {
+    const dayOfWeek = target.getDay();
+    // 화요일(2)이거나 과거 날짜면 인증 가능
+    return dayOfWeek === 2 || !isAfterKST(target, today);
+  }
+  
   // 오늘 또는 과거 날짜는 모두 인증 가능
   // (기수 기간 검증은 isWithinActivePeriod에서 처리)
   return true;
@@ -93,30 +107,32 @@ export function canCertifyForDate(
 
 /**
  * 기본 인증 날짜 제안 (KST 기준)
- * Short-form: 오늘
- * 주간 트랙: 다음 인증일 (1주일 전이면 다음 인증일, 아니면 오늘)
+ * Short-form: certDate 또는 오늘
+ * 주간 트랙: 다음 인증일 (1주일 전이면 다음 인증일, 아니면 certDate 또는 오늘)
  */
 export function getDefaultCertificationDate(
   trackType: TrackType,
-  lastCertificationDate?: Date
+  lastCertificationDate?: Date,
+  certDate?: Date
 ): Date {
   const today = toKSTMidnight(getNow());
+  const targetDate = certDate ? toKSTMidnight(certDate) : today;
   
-  // Short-form은 항상 오늘
+  // Short-form은 항상 targetDate
   if (trackType === 'short-form') {
-    return today;
+    return targetDate;
   }
   
   // 주간 트랙
-  const nextCertDate = getNextCertificationDate(trackType, lastCertificationDate);
+  const nextCertDate = getNextCertificationDate(trackType, lastCertificationDate, certDate);
   const oneWeekBefore = addDays(nextCertDate, -7);
   
-  // 1주일 전이면 다음 인증일 제안, 아니면 오늘
-  if (!isAfterKST(oneWeekBefore, today)) {
+  // 1주일 전이면 다음 인증일 제안, 아니면 targetDate
+  if (!isAfterKST(oneWeekBefore, targetDate)) {
     return nextCertDate;
   }
   
-  return today;
+  return targetDate;
 }
 
 /**
