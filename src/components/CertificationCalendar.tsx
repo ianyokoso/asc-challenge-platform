@@ -81,11 +81,14 @@ function getAnchorDate(track: TrackType, dateKST: Date): Date {
 function buildWeeklyMap(track: TrackType, certifications: CertificationRecord[]): Map<string, CertificationRecord> {
   const weeklyMap = new Map<string, CertificationRecord>();
   
+  console.log('[buildWeeklyMap] 🏗️ Building weekly map for track:', track, 'with certifications:', certifications);
+  
   if (track === 'shortform') {
     // 숏폼은 앵커일 정규화 없음
     certifications.forEach(cert => {
       weeklyMap.set(cert.date, cert);
     });
+    console.log('[buildWeeklyMap] 📝 Short-form map:', weeklyMap);
     return weeklyMap;
   }
   
@@ -95,10 +98,19 @@ function buildWeeklyMap(track: TrackType, certifications: CertificationRecord[])
     const anchorDate = getAnchorDate(track, certDate);
     const anchorKey = format(anchorDate, 'yyyy-MM-dd');
     
+    console.log('[buildWeeklyMap] 🔄 Mapping:', {
+      originalDate: cert.date,
+      certDate: format(certDate, 'yyyy-MM-dd'),
+      anchorDate: format(anchorDate, 'yyyy-MM-dd'),
+      anchorKey,
+      certified: cert.certified
+    });
+    
     // 같은 앵커일에 여러 건이면 최신 것 우선 (여기서는 단순히 덮어쓰기)
     weeklyMap.set(anchorKey, cert);
   });
   
+  console.log('[buildWeeklyMap] ✅ Final weekly map:', weeklyMap);
   return weeklyMap;
 }
 
@@ -229,7 +241,9 @@ export function CertificationCalendar({
   const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
   // 앵커일 기준으로 인증 데이터 정규화
+  console.log('[CertificationCalendar] 📊 Original records:', records);
   const weeklyCertificationMap = buildWeeklyMap(track, records);
+  console.log('[CertificationCalendar] 🔄 Weekly map:', weeklyCertificationMap);
 
   const previousMonth = () => {
     setCurrentDate(subMonths(currentDate, 1));
@@ -254,6 +268,16 @@ export function CertificationCalendar({
     
     // 현재 날짜가 앵커일인지 확인
     const isAnchorDate = anchorDate.getTime() === dateKST.getTime();
+    
+    console.log('[isCertified] 🔍 Checking certification for:', {
+      date: format(date, 'yyyy-MM-dd'),
+      dateKST: format(dateKST, 'yyyy-MM-dd'),
+      anchorDate: format(anchorDate, 'yyyy-MM-dd'),
+      anchorKey,
+      isAnchorDate,
+      hasRecord: !!anchorRecord,
+      certified: anchorRecord?.certified
+    });
     
     // 앵커일이 아니면 인증 상태 없음
     if (!isAnchorDate) {

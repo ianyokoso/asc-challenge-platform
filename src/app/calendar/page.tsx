@@ -79,10 +79,13 @@ export default function CalendarPage() {
 
   // Convert calendar data to CertificationRecord format
   const certificationRecords: CertificationRecord[] = useMemo(() => {
-    return calendarData?.map(item => ({
+    console.log('[CalendarPage] 📅 Calendar data:', calendarData);
+    const records = calendarData?.map(item => ({
       date: item.date,
       certified: item.certified,
     })) || [];
+    console.log('[CalendarPage] 📊 Certification records:', records);
+    return records;
   }, [calendarData]);
 
   // Handler for when a certified date is clicked
