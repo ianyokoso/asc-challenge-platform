@@ -191,6 +191,11 @@ export function CertificationTrackingTable({
           </h3>
           <p className="text-body-sm text-gray-600">
             참여자 {data.participants.length}명 · 인증일 {data.dates.length}일
+            {(data.trackType === 'short-form' || data.trackType === 'shortform') && (
+              <span className="ml-2 text-blue-600 font-medium">
+                (주말 제외)
+              </span>
+            )}
           </p>
         </div>
         <Badge className="bg-primary/10 text-primary">
@@ -480,6 +485,12 @@ export function CertificationTrackingTable({
             <div className="w-2 h-2 lg:w-3 lg:h-3 bg-blue-50 border border-blue-200 flex-shrink-0" aria-hidden="true" />
             <span>월 시작</span>
           </div>
+          {(data.trackType === 'short-form' || data.trackType === 'shortform') && (
+            <div className="flex items-center gap-1.5 lg:gap-2">
+              <div className="w-2 h-2 lg:w-3 lg:h-3 bg-blue-100 border border-blue-300 flex-shrink-0" aria-hidden="true" />
+              <span className="text-blue-600 font-medium">숏폼 트랙은 월~금만 인증 가능</span>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -15,7 +15,8 @@ function isRequiredDate(date: Date, trackType: string): boolean {
   switch (trackType) {
     case 'short-form':
     case 'shortform':
-      return true; // 매일 (월~일)
+      // 숏폼 트랙은 주말(토요일=6, 일요일=0) 제외, 평일(월~금)만 인증 필요
+      return dayOfWeek >= 1 && dayOfWeek <= 5; // 월요일(1) ~ 금요일(5)
     case 'long-form':
     case 'longform':
     case 'builder':
@@ -248,6 +249,7 @@ export async function GET(request: NextRequest) {
         });
 
         const totalCertified = Object.values(certificationsByDate).filter((c: any) => c.status === 'certified').length;
+        // 숏폼 트랙의 경우 주말이 이미 requiredDates에서 제외되어 있으므로 그대로 사용
         const totalRequired = requiredDates.filter(date => date <= format(new Date(), 'yyyy-MM-dd')).length;
         const completionRate = totalRequired > 0 ? (totalCertified / totalRequired) * 100 : 0;
 
