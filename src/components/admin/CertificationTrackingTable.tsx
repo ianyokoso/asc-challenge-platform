@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { format, parse } from 'date-fns';
+import { format, parse, getDay, startOfMonth, isSameDay } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { 
   CheckCircle2, 
@@ -138,6 +138,38 @@ export function CertificationTrackingTable({
     return format(date, 'M/d (E)', { locale: ko });
   };
 
+  // 트랙별 주 시작 요일 (0=일요일, 1=월요일, 2=화요일)
+  const getWeekStartDay = (trackType: string): number => {
+    switch (trackType) {
+      case 'short-form':
+      case 'shortform':
+        return 1; // 월요일
+      case 'long-form':
+      case 'longform':
+      case 'builder':
+        return 0; // 일요일
+      case 'sales':
+        return 2; // 화요일
+      default:
+        return 1; // 기본값: 월요일
+    }
+  };
+
+  // 주 시작일 체크
+  const isWeekStart = (dateStr: string, trackType: string): boolean => {
+    const date = parse(dateStr, 'yyyy-MM-dd', new Date());
+    const dayOfWeek = getDay(date);
+    const weekStartDay = getWeekStartDay(trackType);
+    return dayOfWeek === weekStartDay;
+  };
+
+  // 월 시작일 체크
+  const isMonthStart = (dateStr: string): boolean => {
+    const date = parse(dateStr, 'yyyy-MM-dd', new Date());
+    const monthStart = startOfMonth(date);
+    return isSameDay(date, monthStart);
+  };
+
   if (!data || data.participants.length === 0) {
     return (
       <Card className="p-8 text-center">
@@ -221,17 +253,32 @@ export function CertificationTrackingTable({
                 </th>
 
                 {/* 날짜 열들 */}
-                {data.dates.map((date) => (
-                  <th
-                    key={date}
-                    className="border-b border-l border-gray-200 px-3 py-3 text-center bg-gray-50"
-                    style={{ minWidth: compact ? '80px' : '100px' }}
-                  >
-                    <div className="text-body-sm font-semibold text-gray-700">
-                      {formatDateShort(date)}
-                    </div>
-                  </th>
-                ))}
+                {data.dates.map((date, idx) => {
+                  const isWeekBoundary = isWeekStart(date, data.trackType);
+                  const isMonthBoundary = isMonthStart(date);
+                  const dateObj = parse(date, 'yyyy-MM-dd', new Date());
+                  
+                  return (
+                    <th
+                      key={date}
+                      className={`
+                        border-b border-l border-gray-200 px-3 py-3 text-center bg-gray-50
+                        ${isWeekBoundary ? 'border-l-2 border-l-blue-400' : ''}
+                        ${isMonthBoundary ? 'bg-blue-50' : ''}
+                      `}
+                      style={{ minWidth: compact ? '80px' : '100px' }}
+                    >
+                      <div className="text-body-sm font-semibold text-gray-700">
+                        {formatDateShort(date)}
+                      </div>
+                      {isMonthBoundary && (
+                        <div className="text-xs text-blue-600 mt-1">
+                          {format(dateObj, 'M월', { locale: ko })}
+                        </div>
+                      )}
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
 
@@ -305,11 +352,17 @@ export function CertificationTrackingTable({
                   {data.dates.map((date) => {
                     const cert = participant.certifications[date];
                     const display = getCertificationDisplay(cert.status, cert.url);
+                    const isWeekBoundary = isWeekStart(date, data.trackType);
+                    const isMonthBoundary = isMonthStart(date);
 
                     return (
                       <td
                         key={date}
-                        className="border-b border-l border-gray-200 p-2 text-center"
+                        className={`
+                          border-b border-l border-gray-200 p-2 text-center
+                          ${isWeekBoundary ? 'border-l-2 border-l-blue-400' : ''}
+                          ${isMonthBoundary ? 'bg-blue-50/30' : ''}
+                        `}
                       >
                         {display.clickable && cert.url ? (
                           <a
@@ -357,22 +410,34 @@ export function CertificationTrackingTable({
       </div>
 
       {/* 범례 */}
-      <div className="mt-4 flex flex-wrap gap-4 text-body-sm text-gray-600">
-        <div className="flex items-center gap-2">
-          <CheckCircle2 className="h-4 w-4 text-green-600" />
-          <span>인증 완료</span>
+      <div className="mt-4 space-y-2">
+        <div className="flex flex-wrap gap-4 text-body-sm text-gray-600">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 text-green-600" />
+            <span>인증 완료</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-yellow-600" />
+            <span>인증 대기</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <XCircle className="h-4 w-4 text-red-600" />
+            <span>미인증</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Minus className="h-4 w-4 text-gray-400" />
+            <span>인증 불필요</span>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Clock className="h-4 w-4 text-yellow-600" />
-          <span>인증 대기</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <XCircle className="h-4 w-4 text-red-600" />
-          <span>미인증</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Minus className="h-4 w-4 text-gray-400" />
-          <span>인증 불필요</span>
+        <div className="flex flex-wrap gap-4 text-body-sm text-gray-500">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 border-l-2 border-l-blue-400" />
+            <span>주 시작 (트랙별: 숏폼=월, 롱폼/빌더=일, 세일즈=화)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-blue-50" />
+            <span>월 시작</span>
+          </div>
         </div>
       </div>
     </div>
