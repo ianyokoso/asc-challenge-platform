@@ -130,120 +130,153 @@ export function CertificationSummaryTable({ data }: CertificationSummaryTablePro
 
   return (
     <Card className="overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full">
+      <div className="overflow-x-auto lg:overflow-x-visible">
+        <table className="w-full" style={{ tableLayout: 'fixed' }}>
+          {/* 컬럼 폭 정의 */}
+          <colgroup>
+            <col className="w-48 lg:w-64" /> {/* 멤버 */}
+            <col className="w-40 lg:w-56" /> {/* 참여 트랙 */}
+            <col className="w-24 lg:w-32" /> {/* 이행 */}
+            <col className="w-24 lg:w-32" /> {/* 미이행 */}
+            <col className="w-32 lg:w-40" /> {/* 완료율 */}
+          </colgroup>
+
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
               <th 
-                className="px-6 py-4 text-left text-sm font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 transition-colors"
+                className="px-3 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 transition-colors"
                 onClick={() => handleSort('name')}
+                aria-label="멤버로 정렬"
               >
-                멤버 <SortIcon field="name" />
-              </th>
-              <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
-                참여 트랙
+                <span className="truncate">멤버</span> <SortIcon field="name" />
               </th>
               <th 
-                className="px-6 py-4 text-center text-sm font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 transition-colors"
+                className="px-3 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-gray-900"
+                aria-label="참여 트랙"
+              >
+                <span className="truncate">참여 트랙</span>
+              </th>
+              <th 
+                className="px-2 lg:px-4 py-3 lg:py-4 text-center text-xs lg:text-sm font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 transition-colors"
                 onClick={() => handleSort('completed')}
+                aria-label="이행으로 정렬"
               >
-                이행 <SortIcon field="completed" />
+                <span className="truncate">이행</span> <SortIcon field="completed" />
               </th>
               <th 
-                className="px-6 py-4 text-center text-sm font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 transition-colors"
+                className="px-2 lg:px-4 py-3 lg:py-4 text-center text-xs lg:text-sm font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 transition-colors"
                 onClick={() => handleSort('missing')}
+                aria-label="미이행으로 정렬"
               >
-                미이행 <SortIcon field="missing" />
+                <span className="truncate">미이행</span> <SortIcon field="missing" />
               </th>
               <th 
-                className="px-6 py-4 text-center text-sm font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 transition-colors"
+                className="px-2 lg:px-4 py-3 lg:py-4 text-center text-xs lg:text-sm font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 transition-colors"
                 onClick={() => handleSort('completion')}
+                aria-label="완료율로 정렬"
               >
-                완료율 <SortIcon field="completion" />
+                <span className="truncate">완료율</span> <SortIcon field="completion" />
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200">
+          <tbody className="divide-y divide-gray-200" role="rowgroup">
             {participants.map((participant) => {
               const missing = participant.overallRequired - participant.overallCertified;
               
               return (
-                <tr key={participant.userId} className="hover:bg-gray-50 transition-colors">
+                <tr key={participant.userId} className="hover:bg-gray-50 transition-colors" role="row">
                   {/* 멤버 */}
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-10 w-10">
+                  <td className="px-3 lg:px-6 py-3 lg:py-4" role="cell">
+                    <div className="flex items-center gap-2 overflow-hidden" title={participant.discordUsername}>
+                      <Avatar className="h-8 w-8 lg:h-10 lg:w-10 flex-shrink-0">
                         {participant.discordAvatarUrl ? (
                           <img 
                             src={participant.discordAvatarUrl} 
-                            alt={participant.discordUsername}
+                            alt=""
                             className="h-full w-full object-cover"
+                            aria-hidden="true"
                           />
                         ) : (
-                          <div className="h-full w-full flex items-center justify-center bg-primary/10 text-primary font-semibold text-lg">
+                          <div className="h-full w-full flex items-center justify-center bg-primary/10 text-primary font-semibold text-sm lg:text-lg" aria-hidden="true">
                             {participant.discordUsername.charAt(0).toUpperCase()}
                           </div>
                         )}
                       </Avatar>
-                      <div>
-                        <div className="font-medium text-gray-900">
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium text-sm lg:text-base text-gray-900 truncate">
                           {participant.discordUsername}
                         </div>
-                        <div className="text-sm text-gray-500">
+                        <div className="text-xs lg:text-sm text-gray-500">
                           {participant.tracks.length}개 트랙
                         </div>
                       </div>
+                      <span className="sr-only">{participant.discordUsername}</span>
                     </div>
                   </td>
 
                   {/* 참여 트랙 */}
-                  <td className="px-6 py-4">
-                    <div className="flex flex-wrap gap-1.5">
+                  <td className="px-3 lg:px-6 py-3 lg:py-4" role="cell">
+                    <div className="flex flex-wrap gap-1 lg:gap-1.5">
                       {participant.tracks.map((track, idx) => (
                         <Badge 
                           key={idx}
                           variant="outline" 
-                          className="text-xs"
+                          className="text-xs whitespace-nowrap"
+                          title={track.trackName}
                         >
-                          {track.trackName}
+                          <span className="truncate max-w-[80px] lg:max-w-none">
+                            {track.trackName}
+                          </span>
                         </Badge>
                       ))}
                     </div>
                   </td>
 
                   {/* 이행 */}
-                  <td className="px-6 py-4 text-center">
-                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-green-50 rounded-lg">
-                      <span className="text-2xl font-bold text-green-700">
+                  <td 
+                    className="px-2 lg:px-4 py-3 lg:py-4 text-center" 
+                    role="cell"
+                    aria-label={`이행 ${participant.overallCertified}개, 전체 ${participant.overallRequired}개 중`}
+                  >
+                    <div className="inline-flex items-center gap-1 lg:gap-2 px-2 lg:px-3 py-1 lg:py-1.5 bg-green-50 rounded-lg">
+                      <span className="text-lg lg:text-2xl font-bold text-green-700 whitespace-nowrap">
                         {participant.overallCertified}
                       </span>
-                      <span className="text-sm text-gray-500">
+                      <span className="text-xs lg:text-sm text-gray-500 whitespace-nowrap hidden lg:inline">
                         / {participant.overallRequired}
                       </span>
                     </div>
                   </td>
 
                   {/* 미이행 */}
-                  <td className="px-6 py-4 text-center">
-                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-red-50 rounded-lg">
-                      <span className="text-2xl font-bold text-red-700">
+                  <td 
+                    className="px-2 lg:px-4 py-3 lg:py-4 text-center" 
+                    role="cell"
+                    aria-label={`미이행 ${missing}개, 전체 ${participant.overallRequired}개 중`}
+                  >
+                    <div className="inline-flex items-center gap-1 lg:gap-2 px-2 lg:px-3 py-1 lg:py-1.5 bg-red-50 rounded-lg">
+                      <span className="text-lg lg:text-2xl font-bold text-red-700 whitespace-nowrap">
                         {missing}
                       </span>
-                      <span className="text-sm text-gray-500">
+                      <span className="text-xs lg:text-sm text-gray-500 whitespace-nowrap hidden lg:inline">
                         / {participant.overallRequired}
                       </span>
                     </div>
                   </td>
 
                   {/* 완료율 */}
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col items-center gap-2">
-                      <div className="flex items-center gap-2">
-                        <div className="text-2xl font-bold text-gray-900">
+                  <td 
+                    className="px-2 lg:px-4 py-3 lg:py-4" 
+                    role="cell"
+                    aria-label={`완료율 ${participant.overallCompletionRate}%`}
+                  >
+                    <div className="flex flex-col items-center gap-1 lg:gap-2">
+                      <div className="flex items-center gap-1 lg:gap-2">
+                        <div className="text-lg lg:text-2xl font-bold text-gray-900 whitespace-nowrap">
                           {participant.overallCompletionRate}%
                         </div>
                       </div>
-                      <div className="w-full max-w-[120px] h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div className="w-full max-w-[80px] lg:max-w-[120px] h-1.5 lg:h-2 bg-gray-200 rounded-full overflow-hidden">
                         <div 
                           className={`h-full rounded-full transition-all ${
                             participant.overallCompletionRate >= 80 ? 'bg-green-500' :
@@ -251,6 +284,11 @@ export function CertificationSummaryTable({ data }: CertificationSummaryTablePro
                             'bg-red-500'
                           }`}
                           style={{ width: `${Math.min(participant.overallCompletionRate, 100)}%` }}
+                          role="progressbar"
+                          aria-valuenow={participant.overallCompletionRate}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-label={`완료율 ${participant.overallCompletionRate}%`}
                         />
                       </div>
                     </div>
