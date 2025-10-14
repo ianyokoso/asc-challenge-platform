@@ -27,7 +27,6 @@
   import { getNow } from '@/lib/utils/demo-time';
   import { TrackType } from '@/lib/supabase/types';
 import {
-  getDefaultCertificationDate,
   getCertificationGuideMessage
 } from '@/lib/utils/certificationDates';
 
@@ -89,44 +88,29 @@ import {
       }
     }, [userId, currentTrack?.track_id, trackType]);
 
-    // Set default certification date
+    // Set certification date to today only (anti-fraud measure)
     useEffect(() => {
-      if (trackType && !certificationDate) {
-        const defaultDate = getDefaultCertificationDate(trackType, lastCertDate);
-        setCertificationDate(format(defaultDate, 'yyyy-MM-dd'));
-      }
-    }, [trackType, lastCertDate, certificationDate]);
+      const today = format(new Date(), 'yyyy-MM-dd');
+      setCertificationDate(today);
+    }, []);
 
-    // Update default date when certification date changes (for Sales track)
-    useEffect(() => {
-      if (trackType === 'sales' && certificationDate) {
-        const targetDate = new Date(certificationDate);
-        const defaultDate = getDefaultCertificationDate(trackType, lastCertDate, targetDate);
-        const formattedDefault = format(defaultDate, 'yyyy-MM-dd');
-        
-        // Only update if the calculated default is different from current selection
-        if (formattedDefault !== certificationDate) {
-          setCertificationDate(formattedDefault);
-        }
-      }
-    }, [trackType, lastCertDate, certificationDate]);
 
-  // Validate certification date against active period
+  // Validate today's date against active period
   useEffect(() => {
-    if (certificationDate && activePeriod) {
-      const targetDate = new Date(certificationDate);
-      const validation = localValidate(trackType, targetDate, activePeriod, lastCertDate);
+    if (activePeriod) {
+      const today = new Date();
+      const validation = localValidate(trackType, today, activePeriod, lastCertDate);
       setIsPeriodValid(validation.ok);
       setPeriodValidationMessage(validation.message ?? null);
       if (!validation.ok) {
         console.log('[CertifyPage] ⚠️ Period validation failed:', validation.message);
       }
-    } else if (certificationDate && !activePeriod) {
+    } else {
       // No active period - allow certification
       setIsPeriodValid(true);
       setPeriodValidationMessage(null);
     }
-  }, [certificationDate, activePeriod]);
+  }, [activePeriod, trackType, lastCertDate]);
 
     const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
@@ -154,11 +138,20 @@ import {
         return;
       }
 
-    // 로컬 검증(KST + certDate 기준)
-    const targetDate = new Date(certificationDate);
-    const v = localValidate(trackType, targetDate, activePeriod, lastCertDate);
+    // 당일 날짜 검증 (부정행위 방지)
+    const today = new Date();
+    const selectedDate = new Date(certificationDate);
+    
+    // 날짜가 당일이 아닌 경우 차단
+    if (today.toDateString() !== selectedDate.toDateString()) {
+      setError('부정행위 방지를 위해 당일 날짜로만 인증이 가능합니다.');
+      return;
+    }
+    
+    // 기간 및 트랙 규칙 검증
+    const v = localValidate(trackType, today, activePeriod, lastCertDate);
     if (!v.ok) {
-      setError(v.message || '이 날짜에는 인증할 수 없습니다. 인증 가능 기간을 확인해주세요.');
+      setError(v.message || '오늘은 인증할 수 없는 날짜입니다.');
       return;
     }
 
@@ -399,33 +392,25 @@ import {
                 )}
               </div>
               <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Date */}
+                {/* Date - 당일로 고정 */}
                 <div>
-                  <Label htmlFor="date" className="text-body font-medium text-gray-900">
+                  <Label className="text-body font-medium text-gray-900">
                     인증 날짜
                   </Label>
-                  <Input
-                    id="date"
-                    type="date"
-                    value={certificationDate}
-                    onChange={(e) => setCertificationDate(e.target.value)}
-                    max={trackType === 'short-form' ? format(new Date(), 'yyyy-MM-dd') : undefined}
-                    required
-                    className="mt-2"
-                  />
-                  <p className="text-body-sm text-gray-500 mt-1">
-                    {certificationDate && format(new Date(certificationDate), 'yyyy년 MM월 dd일 (EEE)', { locale: ko })}
-                  </p>
-                  
-                  {/* Period validation warning */}
-                  {!isPeriodValid && periodValidationMessage && (
-                    <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                      <p className="text-body-sm text-yellow-800 flex items-center gap-2">
-                        <AlertCircle className="h-4 w-4" />
-                        {periodValidationMessage}
-                      </p>
+                  <div className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <CalendarIcon className="h-5 w-5 text-gray-600" />
+                      <span className="text-body font-medium text-gray-900">
+                        {format(new Date(), 'yyyy년 MM월 dd일 (EEE)', { locale: ko })}
+                      </span>
+                      <span className="text-body-sm text-gray-500">
+                        (당일만 인증 가능)
+                      </span>
                     </div>
-                  )}
+                  </div>
+                  <p className="text-body-sm text-gray-500 mt-1">
+                    부정행위 방지를 위해 당일 날짜로만 인증이 가능합니다.
+                  </p>
                 </div>
 
                 {/* URL */}
