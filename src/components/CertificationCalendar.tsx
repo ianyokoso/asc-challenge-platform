@@ -13,9 +13,11 @@ import {
   startOfDay,
   addMonths,
   subMonths,
+  isAfter,
 } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
+import { toKSTMidnight } from '@/lib/utils/date-helpers';
 
 /**
  * Certification record type
@@ -29,6 +31,21 @@ export interface CertificationRecord {
  * Track type definition
  */
 export type TrackType = 'shortform' | 'longform' | 'builder' | 'sales';
+
+/**
+ * Active period interface
+ */
+export interface ActivePeriod {
+  id: string;
+  term_number: number;
+  start_date: string;
+  end_date: string;
+  is_active: boolean;
+  description: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
 /**
  * Props for CertificationCalendar component
@@ -50,7 +67,27 @@ export interface CertificationCalendarProps {
    * Optional initial month to display
    */
   initialMonth?: Date;
+  /**
+   * Active period to determine valid certification dates
+   */
+  activePeriod?: ActivePeriod | null;
 }
+
+/**
+ * Check if date is within active period
+ * @param date Date to check
+ * @param activePeriod Active period information
+ * @returns true if the date is within the active period
+ */
+const isWithinActivePeriod = (date: Date, activePeriod?: ActivePeriod | null): boolean => {
+  if (!activePeriod) return true; // If no active period, all dates are valid
+
+  const certDate = toKSTMidnight(date);
+  const startDate = toKSTMidnight(activePeriod.start_date);
+  const endDate = toKSTMidnight(activePeriod.end_date);
+
+  return certDate.getTime() >= startDate.getTime() && certDate.getTime() <= endDate.getTime();
+};
 
 /**
  * Get active days for each track type
@@ -90,6 +127,7 @@ export function CertificationCalendar({
   track,
   onDateClick,
   initialMonth = new Date(),
+  activePeriod,
 }: CertificationCalendarProps) {
   const [currentDate, setCurrentDate] = useState(initialMonth);
 
@@ -179,6 +217,7 @@ export function CertificationCalendar({
           const today = isToday(date);
           const past = isPastDate(date);
           const activeDay = isActiveDayForTrack(track, date);
+          const withinPeriod = isWithinActivePeriod(date, activePeriod);
           const isCurrentMonth = isSameMonth(date, currentDate);
 
           return (
@@ -193,6 +232,8 @@ export function CertificationCalendar({
               } ${
                 certified
                   ? 'bg-accent/10 hover:bg-accent/20 cursor-pointer'
+                  : !withinPeriod
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                   : !activeDay
                   ? 'bg-gray-100 text-gray-400'
                   : past && activeDay
@@ -201,7 +242,7 @@ export function CertificationCalendar({
               } ${
                 !isCurrentMonth ? 'opacity-40' : ''
               }`}
-              aria-label={`${format(date, 'M월 d일')} ${certified ? '인증 완료' : '미인증'}`}
+              aria-label={`${format(date, 'M월 d일')} ${certified ? '인증 완료' : !withinPeriod ? '기수 기간 외' : '미인증'}`}
             >
               <div className="flex flex-col items-center justify-center h-full gap-1">
                 <span
@@ -254,6 +295,7 @@ export function CertificationCalendar({
                   const today = isToday(date);
                   const past = isPastDate(date);
                   const activeDay = isActiveDayForTrack(track, date);
+                  const withinPeriod = isWithinActivePeriod(date, activePeriod);
 
                   return (
                     <button
@@ -267,6 +309,8 @@ export function CertificationCalendar({
                       } ${
                         certified
                           ? 'bg-accent/10 hover:bg-accent/20 cursor-pointer'
+                          : !withinPeriod
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                           : !activeDay
                           ? 'bg-gray-100 text-gray-400'
                           : past && activeDay
@@ -311,6 +355,12 @@ export function CertificationCalendar({
           <div className="flex items-center gap-2">
             <div className="w-5 h-5 bg-gray-100 rounded" />
             <span className="text-body-sm text-gray-600">비활성</span>
+          </div>
+        )}
+        {activePeriod && (
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 bg-gray-100 rounded cursor-not-allowed" />
+            <span className="text-body-sm text-gray-600">기수 기간 외</span>
           </div>
         )}
       </div>

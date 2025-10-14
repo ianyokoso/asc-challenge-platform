@@ -24,6 +24,7 @@ import { Calendar as CalendarIcon, CheckCircle2, Award, Loader2 } from 'lucide-r
 import { getUser } from '@/lib/supabase/client';
 import { useUserTracks } from '@/hooks/useUserTracks';
 import { useCalendarCertifications, useUserStats } from '@/hooks/useCertifications';
+import { useActivePeriod } from '@/hooks/useActivePeriod';
 
 export default function CalendarPage() {
   const router = useRouter();
@@ -42,6 +43,9 @@ export default function CalendarPage() {
 
   // Fetch user tracks
   const { data: userTracks, isLoading: tracksLoading } = useUserTracks(userId || undefined);
+  
+  // Fetch active period
+  const { data: activePeriod, isLoading: periodLoading } = useActivePeriod();
   
   // Auto-select first track if not selected
   useEffect(() => {
@@ -81,7 +85,7 @@ export default function CalendarPage() {
     router.push(`/certify?date=${date}`);
   };
 
-  const isLoading = tracksLoading || calendarLoading || statsLoading;
+  const isLoading = tracksLoading || calendarLoading || statsLoading || periodLoading;
 
   return (
     <>
@@ -186,6 +190,7 @@ export default function CalendarPage() {
                     track={selectedTrack?.track?.type || 'short-form'}
                     onDateClick={handleDateClick}
                     initialMonth={currentDate}
+                    activePeriod={activePeriod}
                   />
                 </Card>
               </div>
