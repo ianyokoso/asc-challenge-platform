@@ -134,17 +134,31 @@ export async function POST(request: NextRequest) {
       try {
         console.log(`[Reset API ${requestId}] 🔄 Updating user status to inactive...`);
         
-        const { error: updateError } = await admin
+        // 1. 사용자 기본 상태를 비활성화
+        const { error: userUpdateError } = await admin
           .from('users')
           .update({ is_active: false })
           .neq('id', '00000000-0000-0000-0000-000000000000'); // 시스템 계정 제외
         
-        if (updateError) {
-          console.error(`[Reset API ${requestId}] ❌ Failed to update user status:`, updateError);
+        if (userUpdateError) {
+          console.error(`[Reset API ${requestId}] ❌ Failed to update user status:`, userUpdateError);
         } else {
           console.log(`[Reset API ${requestId}] ✅ User status updated to inactive`);
-          // 실제 업데이트된 행 수를 가져오기 어려우므로 추정값 사용
-          participantsUpdated = 1; // RPC 모드에서도 정확한 수를 알기 어려움
+        }
+
+        // 2. 모든 사용자 트랙 참여를 비활성화 (대기 상태로 전환)
+        console.log(`[Reset API ${requestId}] 🔄 Deactivating all user track enrollments...`);
+        
+        const { error: trackUpdateError, count: trackUpdateCount } = await admin
+          .from('user_tracks')
+          .update({ is_active: false })
+          .neq('user_id', '00000000-0000-0000-0000-000000000000'); // 시스템 계정 제외
+        
+        if (trackUpdateError) {
+          console.error(`[Reset API ${requestId}] ❌ Failed to update user track enrollments:`, trackUpdateError);
+        } else {
+          console.log(`[Reset API ${requestId}] ✅ User track enrollments deactivated:`, trackUpdateCount, 'records');
+          participantsUpdated = trackUpdateCount || 0;
         }
       } catch (error) {
         console.error(`[Reset API ${requestId}] ❌ Error updating user status:`, error);
@@ -360,17 +374,31 @@ export async function POST(request: NextRequest) {
       try {
         console.log(`[Reset API ${requestId}] 🔄 Updating user status to inactive (fallback mode)...`);
         
-        const { error: updateError } = await admin
+        // 1. 사용자 기본 상태를 비활성화
+        const { error: userUpdateError } = await admin
           .from('users')
           .update({ is_active: false })
           .neq('id', '00000000-0000-0000-0000-000000000000'); // 시스템 계정 제외
         
-        if (updateError) {
-          console.error(`[Reset API ${requestId}] ❌ Failed to update user status:`, updateError);
+        if (userUpdateError) {
+          console.error(`[Reset API ${requestId}] ❌ Failed to update user status:`, userUpdateError);
         } else {
           console.log(`[Reset API ${requestId}] ✅ User status updated to inactive`);
-          // 실제 업데이트된 행 수를 가져오기 어려우므로 추정값 사용
-          participantsUpdated = 1; // 폴백 모드에서도 정확한 수를 알기 어려움
+        }
+
+        // 2. 모든 사용자 트랙 참여를 비활성화 (대기 상태로 전환)
+        console.log(`[Reset API ${requestId}] 🔄 Deactivating all user track enrollments (fallback mode)...`);
+        
+        const { error: trackUpdateError, count: trackUpdateCount } = await admin
+          .from('user_tracks')
+          .update({ is_active: false })
+          .neq('user_id', '00000000-0000-0000-0000-000000000000'); // 시스템 계정 제외
+        
+        if (trackUpdateError) {
+          console.error(`[Reset API ${requestId}] ❌ Failed to update user track enrollments:`, trackUpdateError);
+        } else {
+          console.log(`[Reset API ${requestId}] ✅ User track enrollments deactivated:`, trackUpdateCount, 'records');
+          participantsUpdated = trackUpdateCount || 0;
         }
       } catch (error) {
         console.error(`[Reset API ${requestId}] ❌ Error updating user status:`, error);
