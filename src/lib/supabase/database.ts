@@ -413,10 +413,13 @@ export async function getCalendarCertifications(
 // LEADERBOARD OPERATIONS
 // ============================================
 
-export async function getLeaderboard(trackId?: string, limit: number = 100): Promise<LeaderboardEntry[]> {
+export async function getLeaderboard(trackId?: string, limit: number = 100, isAdmin: boolean = false): Promise<LeaderboardEntry[]> {
   const supabase = createClient();
   
-  const { data, error } = await supabase.rpc('get_leaderboard', {
+  // 관리자용 함수 사용 여부 결정
+  const rpcFunction = isAdmin ? 'get_admin_leaderboard' : 'get_leaderboard';
+  
+  const { data, error } = await supabase.rpc(rpcFunction, {
     p_track_id: trackId || null,
     p_limit: limit,
   });

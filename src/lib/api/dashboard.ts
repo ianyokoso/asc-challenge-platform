@@ -126,23 +126,25 @@ export async function getDashboardData(periodId?: string): Promise<DashboardData
     const trackDataPromises = tracks.map(async (track) => {
       const trackType = track.type as TrackType;
       
-      // 해당 트랙의 참여자 조회
+      // 해당 트랙의 참여자 조회 (관리자용 - 모든 사용자 포함)
       const { data: userTracks, error: userTracksError } = await supabase
         .from('user_tracks')
         .select(`
           id,
           user_id,
+          is_active,
           users!inner(id, discord_username, is_active)
         `)
-        .eq('track_id', track.id)
-        .eq('users.is_active', true);
+        .eq('track_id', track.id);
 
       if (userTracksError || !userTracks) {
         console.error(`트랙 ${track.name} 참여자 조회 실패:`, userTracksError);
         return null;
       }
 
-      const participantIds = userTracks.map(ut => ut.user_id);
+      // 활성 사용자만 필터링 (관리자용)
+      const activeUserTracks = userTracks.filter(ut => ut.is_active && (ut.users as any)?.is_active);
+      const participantIds = activeUserTracks.map(ut => ut.user_id);
       if (participantIds.length === 0) {
         return {
           key: trackType,

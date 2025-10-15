@@ -164,19 +164,20 @@ export async function GET(request: NextRequest) {
     for (const track of tracks) {
       const requiredDates = getCohortRequiredDates(periodStart, periodEnd, track.type);
 
-      // 해당 트랙의 참여자 조회 (SERVICE_ROLE로 모든 데이터 접근 가능)
+      // 해당 트랙의 참여자 조회 (관리자용 - 모든 사용자 포함)
       const { data: userTracks, error: userTracksError } = await supabase
         .from('user_tracks')
         .select(`
           user_id,
+          is_active,
           users (
             id,
             discord_username,
-            discord_avatar_url
+            discord_avatar_url,
+            is_active
           )
         `)
-        .eq('track_id', track.id)
-        .eq('is_active', true);
+        .eq('track_id', track.id);
 
       if (userTracksError) {
         console.error(`[API] ❌ Error fetching user tracks for ${track.name}:`, userTracksError);

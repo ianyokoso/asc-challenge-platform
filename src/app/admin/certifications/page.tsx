@@ -153,6 +153,11 @@ function CertificationManagementPageContent() {
       queryClient.invalidateQueries({ queryKey: ['active-period'] });
       queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
       queryClient.invalidateQueries({ queryKey: ['users-with-tracks'] });
+      queryClient.invalidateQueries({ queryKey: ['leaderboard'] });
+      queryClient.invalidateQueries({ queryKey: ['certification-tracking'] });
+      queryClient.invalidateQueries({ queryKey: ['tracks'] });
+      queryClient.invalidateQueries({ queryKey: ['user-tracks'] });
+      queryClient.invalidateQueries({ queryKey: ['certifications'] });
       
       // 모달 닫기 및 폼 초기화
       setIsResetModalOpen(false);

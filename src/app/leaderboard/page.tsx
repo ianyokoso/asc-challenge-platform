@@ -11,6 +11,7 @@ import { PeriodBanner } from '@/components/PeriodBanner';
 import { Trophy, Medal, Award, Loader2 } from 'lucide-react';
 import { useLeaderboard } from '@/hooks/useLeaderboard';
 import { useTracks } from '@/hooks/useTracks';
+import { useIsAdmin } from '@/hooks/useAdmin';
 
 const tracks = ['all', 'shortform', 'longform', 'builder', 'sales'] as const;
 type Track = (typeof tracks)[number];
@@ -26,6 +27,9 @@ const trackLabels: Record<Track, string> = {
 export default function LeaderboardPage() {
   const [selectedTrack, setSelectedTrack] = useState<Track>('all');
   
+  // 관리자 권한 확인
+  const { data: isAdmin, isLoading: adminLoading } = useIsAdmin();
+  
   // Fetch all tracks to get track IDs
   const { data: tracksData } = useTracks();
   
@@ -35,8 +39,8 @@ export default function LeaderboardPage() {
     return tracksData?.find(t => t.type === selectedTrack)?.id;
   }, [selectedTrack, tracksData]);
   
-  // Fetch leaderboard data
-  const { data: leaderboardData, isLoading, error } = useLeaderboard(selectedTrackId, 100);
+  // Fetch leaderboard data (관리자는 모든 사용자, 일반 사용자는 활성 사용자만)
+  const { data: leaderboardData, isLoading, error } = useLeaderboard(selectedTrackId, 100, isAdmin);
 
   const getRankIcon = (rank: number) => {
     switch (rank) {
