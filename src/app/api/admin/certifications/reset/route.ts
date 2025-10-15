@@ -55,7 +55,13 @@ export async function POST(request: NextRequest) {
     });
 
     // 4. Request body 파싱
-    let body: { termNumber?: number; since?: string } = {};
+    let body: { 
+      termNumber?: number; 
+      since?: string;
+      beforeDate?: string;  // 프론트엔드 파라미터
+      seasonStartDate?: string;
+      seasonEndDate?: string;
+    } = {};
     try {
       body = await request.json();
     } catch (error) {
@@ -69,7 +75,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(errorResponse, { status: 400 });
     }
 
-    const { termNumber, since } = body;
+    // 프론트엔드 파라미터를 RPC 함수 파라미터로 변환
+    const termNumber = body.termNumber || null;
+    const since = body.beforeDate || body.since || null;
     console.log(`[Reset API ${requestId}] 📋 Parameters:`, { termNumber, since });
 
     // 5. 백업 테이블 존재 확인
@@ -117,8 +125,52 @@ export async function POST(request: NextRequest) {
 
       console.log(`[Reset API ${requestId}] ✅ RPC completed successfully:`, rpcResult);
       
+      // 기수 생성 로직 (seasonStartDate와 seasonEndDate가 있는 경우)
+      let newPeriod = null;
+      if (body.seasonStartDate && body.seasonEndDate) {
+        try {
+          console.log(`[Reset API ${requestId}] 🔄 Creating new period (RPC mode)...`);
+          
+          // 기수 번호 계산 (기존 기수 + 1)
+          const { data: lastPeriod } = await admin
+            .from('periods')
+            .select('term_number')
+            .order('term_number', { ascending: false })
+            .limit(1);
+          
+          const nextTermNumber = (lastPeriod?.[0]?.term_number || 0) + 1;
+          
+          // 새 기수 생성
+          const { data: periodData, error: periodError } = await admin
+            .from('periods')
+            .insert({
+              term_number: nextTermNumber,
+              start_date: body.seasonStartDate,
+              end_date: body.seasonEndDate,
+              description: `전체 리셋으로 생성된 ${nextTermNumber}기`,
+              is_active: true
+            })
+            .select()
+            .single();
+          
+          if (periodError) {
+            console.error(`[Reset API ${requestId}] ❌ Failed to create new period:`, periodError);
+          } else {
+            console.log(`[Reset API ${requestId}] ✅ New period created:`, periodData);
+            newPeriod = periodData;
+          }
+        } catch (error) {
+          console.error(`[Reset API ${requestId}] ❌ Error creating new period:`, error);
+        }
+      }
+      
       return NextResponse.json({
         ok: true,
+        data: {
+          certificationsDeleted: rpcResult?.deleted || 0,
+          participantsUpdated: 0, // RPC 모드에서는 참여자 업데이트 안함
+          newPeriod: newPeriod
+        },
         backedUp: rpcResult?.backedUp || 0,
         deleted: rpcResult?.deleted || 0,
         mode: 'rpc',
@@ -270,8 +322,52 @@ export async function POST(request: NextRequest) {
         deleted: deleteCount,
       });
 
+      // 기수 생성 로직 (seasonStartDate와 seasonEndDate가 있는 경우)
+      let newPeriod = null;
+      if (body.seasonStartDate && body.seasonEndDate) {
+        try {
+          console.log(`[Reset API ${requestId}] 🔄 Creating new period (fallback mode)...`);
+          
+          // 기수 번호 계산 (기존 기수 + 1)
+          const { data: lastPeriod } = await admin
+            .from('periods')
+            .select('term_number')
+            .order('term_number', { ascending: false })
+            .limit(1);
+          
+          const nextTermNumber = (lastPeriod?.[0]?.term_number || 0) + 1;
+          
+          // 새 기수 생성
+          const { data: periodData, error: periodError } = await admin
+            .from('periods')
+            .insert({
+              term_number: nextTermNumber,
+              start_date: body.seasonStartDate,
+              end_date: body.seasonEndDate,
+              description: `전체 리셋으로 생성된 ${nextTermNumber}기`,
+              is_active: true
+            })
+            .select()
+            .single();
+          
+          if (periodError) {
+            console.error(`[Reset API ${requestId}] ❌ Failed to create new period:`, periodError);
+          } else {
+            console.log(`[Reset API ${requestId}] ✅ New period created:`, periodData);
+            newPeriod = periodData;
+          }
+        } catch (error) {
+          console.error(`[Reset API ${requestId}] ❌ Error creating new period:`, error);
+        }
+      }
+
       return NextResponse.json({
         ok: true,
+        data: {
+          certificationsDeleted: deleteCount,
+          participantsUpdated: 0, // 폴백 모드에서는 참여자 업데이트 안함
+          newPeriod: newPeriod
+        },
         step: 'completed',
         backedUp: backupCount,
         deleted: deleteCount,
