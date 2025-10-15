@@ -54,12 +54,12 @@ const alignToWeekdayKST = (d: Date | string, weekday: number) => {
  * @returns 해당 주의 앵커일
  */
 function getAnchorDate(track: TrackType, dateKST: Date): Date {
-  if (track === 'shortform') {
+  if (track === 'short-form') {
     // 숏폼은 앵커일 개념 없음 (평일 매일)
     return dateKST;
   }
   
-  if (track === 'longform' || track === 'builder') {
+  if (track === 'long-form' || track === 'builder') {
     // 롱폼/빌더: 주의 일요일
     return alignToSundayKST(dateKST);
   }
@@ -84,7 +84,23 @@ export interface CertificationRecord {
 /**
  * Track type definition
  */
-export type TrackType = 'shortform' | 'longform' | 'builder' | 'sales';
+export type TrackType = 'short-form' | 'long-form' | 'builder' | 'sales';
+
+/**
+ * 트랙 키 정규화 함수
+ * @param t - 입력 트랙 문자열
+ * @returns 정규화된 TrackType
+ */
+function normalizeTrack(t: string): TrackType {
+  switch (t) {
+    case 'shortform':
+      return 'short-form';
+    case 'longform':
+      return 'long-form';
+    default:
+      return t as TrackType;
+  }
+}
 
 /**
  * Active period interface
@@ -164,11 +180,13 @@ const isActiveDayForTrack = (track: TrackType | undefined, date: Date): boolean 
 
   const dayOfWeek = date.getDay(); // 0 = Sunday, 6 = Saturday
 
-  switch (track) {
-    case 'shortform':
+  const normalizedTrack = track ? normalizeTrack(track) : undefined;
+  
+  switch (normalizedTrack) {
+    case 'short-form':
       // Mon-Fri only
       return dayOfWeek >= 1 && dayOfWeek <= 5;
-    case 'longform':
+    case 'long-form':
     case 'builder':
       // Sunday only
       return dayOfWeek === 0;
@@ -209,16 +227,24 @@ export function CertificationCalendar({
 
   console.log('[CertificationCalendar] 📊 Original records:', records);
   
+  // 트랙 키 정규화
+  const normalizedTrack = track ? normalizeTrack(track) : undefined;
+  
   records.forEach((r) => {
     if (!r.certified) return; // 인증되지 않은 레코드는 무시
     
     const rec = startOfDayKST(r.date);
-    if (track === 'shortform') {
+    if (normalizedTrack === 'short-form') {
       certifiedDaySet.add(dateKeyKST(rec));
     } else {
       // ➜ 레코드마다 '그 레코드가 속하는 앵커일'을 계산해 해당 앵커일 키에 체크
-      const anchor = getAnchorDate(track, rec); // longform/builder: 일요일, sales: 화요일
+      const anchor = getAnchorDate(normalizedTrack!, rec); // long-form/builder: 일요일, sales: 화요일
       anchorCertifiedSet.add(dateKeyKST(anchor));
+      
+      // 디버그 로깅
+      if (normalizedTrack === 'long-form') {
+        console.debug('[anchor] long-form rec=%s -> anchor=%s', dateKeyKST(rec), dateKeyKST(anchor));
+      }
     }
   });
   
@@ -228,7 +254,8 @@ export function CertificationCalendar({
   // 2) 셀 상태 판단 헬퍼 함수들
   const isAnchorDay = (track: TrackType, date: Date) => {
     const d = startOfDayKST(date);
-    const anchorOfD = getAnchorDate(track, d);
+    const normalizedTrack = normalizeTrack(track);
+    const anchorOfD = getAnchorDate(normalizedTrack, d);
     return dateKeyKST(anchorOfD) === dateKeyKST(d);
   };
 
@@ -238,15 +265,15 @@ export function CertificationCalendar({
 
     const dow = getKSTDay(date); // 0=일 1=월 ... 2=화 ... 6=토
 
-    if (track === 'shortform') {
+    if (normalizedTrack === 'short-form') {
       // 월~금만 활성
       return dow >= 1 && dow <= 5;
     }
-    if (track === 'sales') {
+    if (normalizedTrack === 'sales') {
       // 앵커일=화요일만 활성
       return dow === 2;
     }
-    // longform, builder: 앵커일=일요일만 활성
+    // long-form, builder: 앵커일=일요일만 활성
     return dow === 0;
   };
 
@@ -261,13 +288,13 @@ export function CertificationCalendar({
   const isCertified = (date: Date): boolean => {
     const key = dateKeyKST(date);
 
-    if (track === 'shortform') {
+    if (normalizedTrack === 'short-form') {
       // 그날 제출 여부
       return certifiedDaySet.has(key);
     }
 
     // 주간 트랙: 앵커일만 완료 판단, 그 외는 중립(비활성)
-    if (!isAnchorDay(track, date)) return false;
+    if (!isAnchorDay(normalizedTrack!, date)) return false;
 
     // 앵커일 셀에 '해당 주에 제출이 있었는가?' → 미리 만든 집합으로 O(1)
     return anchorCertifiedSet.has(key);

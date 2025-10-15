@@ -50,7 +50,7 @@ export default function CalendarPage() {
   // Auto-select first track if not selected (prioritize ORDER)
   useEffect(() => {
     if (userTracks && userTracks.length > 0 && !selectedTrackId) {
-      const ORDER = ["shortform", "longform", "builder", "sales"];
+      const ORDER = ["short-form", "long-form", "builder", "sales"];
       const sortedTracks = userTracks.sort((a, b) => {
         const aIndex = ORDER.indexOf(a.track?.type || '');
         const bIndex = ORDER.indexOf(b.track?.type || '');
@@ -165,7 +165,7 @@ export default function CalendarPage() {
                   <SelectContent>
                     {userTracks
                       .sort((a, b) => {
-                        const ORDER = ["shortform", "longform", "builder", "sales"];
+                        const ORDER = ["short-form", "long-form", "builder", "sales"];
                         const aIndex = ORDER.indexOf(a.track?.type || '');
                         const bIndex = ORDER.indexOf(b.track?.type || '');
                         return aIndex - bIndex;
@@ -203,7 +203,7 @@ export default function CalendarPage() {
                   </div>
                   <CertificationCalendar
                     records={certificationRecords}
-                    track={selectedTrack?.track?.type || 'short-form'}
+                    track={selectedTrack?.track?.type as any || 'short-form'}
                     onDateClick={handleDateClick}
                     initialMonth={currentDate}
                     activePeriod={activePeriod}
