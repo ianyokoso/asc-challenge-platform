@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { format, isAfter, isBefore, addDays } from 'date-fns';
+import { format, isBefore, addDays } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -56,22 +56,6 @@ const resetFormSchema = z.object({
 }, {
   message: '시작일은 종료일보다 이전이어야 합니다',
   path: ['seasonEndDate'],
-}).refine((data) => {
-  // 시작일이 미래 날짜여야 함
-  const start = new Date(data.seasonStartDate);
-  const tomorrow = addDays(new Date(), 1);
-  return isAfter(start, new Date()) || start.toDateString() === tomorrow.toDateString();
-}, {
-  message: '시작일은 오늘 이후여야 합니다',
-  path: ['seasonStartDate'],
-}).refine((data) => {
-  // 종료일이 미래 날짜여야 함
-  const end = new Date(data.seasonEndDate);
-  const tomorrow = addDays(new Date(), 1);
-  return isAfter(end, new Date()) || end.toDateString() === tomorrow.toDateString();
-}, {
-  message: '종료일은 오늘 이후여야 합니다',
-  path: ['seasonEndDate'],
 });
 
 type ResetFormValues = z.infer<typeof resetFormSchema>;
@@ -110,7 +94,7 @@ function CertificationManagementPageContent() {
     resolver: zodResolver(resetFormSchema),
     defaultValues: {
       beforeDate: today,
-      seasonStartDate: format(addDays(new Date(), 1), 'yyyy-MM-dd'),
+      seasonStartDate: format(new Date(), 'yyyy-MM-dd'),
       seasonEndDate: format(addDays(new Date(), 30), 'yyyy-MM-dd'),
       newTermNumber: undefined, // undefined로 초기화
       reason: '',
