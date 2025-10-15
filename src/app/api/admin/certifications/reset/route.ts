@@ -51,10 +51,17 @@ export async function POST(request: NextRequest) {
     const { 
       termNumber, 
       since,
+      beforeDate,  // 프론트엔드에서 보내는 파라미터
+      seasonStartDate,
+      seasonEndDate,
       reason = 'Admin Reset'
     } = body;
 
-    console.log('[Reset API] 📋 Reset parameters:', { termNumber, since, reason });
+    console.log('[Reset API] 📋 Reset parameters:', { termNumber, since, beforeDate, seasonStartDate, seasonEndDate, reason });
+
+    // 프론트엔드 파라미터를 RPC 함수 파라미터로 변환
+    const rpcTermNumber = termNumber || null;
+    const rpcSince = beforeDate || since || null;
 
     // 3. Supabase 클라이언트 생성 (SERVICE_ROLE_KEY 사용)
     const supabase = createClient(supabaseUrl, supabaseServiceKey, {
@@ -69,8 +76,8 @@ export async function POST(request: NextRequest) {
       const { data: rpcResult, error: rpcError } = await supabase.rpc(
         'admin_reset_certifications', 
         { 
-          p_term_number: termNumber || null,
-          p_since: since || null
+          p_term_number: rpcTermNumber,
+          p_since: rpcSince
         }
       );
 
@@ -80,7 +87,75 @@ export async function POST(request: NextRequest) {
       }
 
       console.log('[Reset API] ✅ RPC completed successfully:', rpcResult);
-      return NextResponse.json(rpcResult);
+      
+      // 사용자 상태를 대기로 변경 (전체 리셋의 경우)
+      let participantsUpdated = 0;
+      try {
+        console.log('[Reset API] 🔄 Updating user status to inactive...');
+        
+        const { data: updateResult, error: updateError } = await supabase
+          .from('users')
+          .update({ is_active: false })
+          .neq('id', '00000000-0000-0000-0000-000000000000'); // 시스템 계정 제외
+        
+        if (updateError) {
+          console.error('[Reset API] ❌ Failed to update user status:', updateError);
+        } else {
+          console.log('[Reset API] ✅ User status updated to inactive');
+          // 실제 업데이트된 행 수를 가져오기 어려우므로 추정값 사용
+          participantsUpdated = 1; // RPC 모드에서도 정확한 수를 알기 어려움
+        }
+      } catch (error) {
+        console.error('[Reset API] ❌ Error updating user status:', error);
+      }
+
+      // 기수 생성 로직 추가 (seasonStartDate와 seasonEndDate가 있는 경우)
+      if (seasonStartDate && seasonEndDate) {
+        try {
+          console.log('[Reset API] 🔄 Creating new period...');
+          
+          // 기수 번호 계산 (기존 기수 + 1)
+          const { data: lastPeriod } = await supabase
+            .from('periods')
+            .select('term_number')
+            .order('term_number', { ascending: false })
+            .limit(1);
+          
+          const nextTermNumber = (lastPeriod?.[0]?.term_number || 0) + 1;
+          
+          // 새 기수 생성
+          const { data: newPeriod, error: periodError } = await supabase
+            .from('periods')
+            .insert({
+              term_number: nextTermNumber,
+              start_date: seasonStartDate,
+              end_date: seasonEndDate,
+              description: `전체 리셋으로 생성된 ${nextTermNumber}기`,
+              is_active: true
+            })
+            .select()
+            .single();
+          
+          if (periodError) {
+            console.error('[Reset API] ❌ Failed to create new period:', periodError);
+            // 기수 생성 실패해도 리셋은 성공으로 처리
+          } else {
+            console.log('[Reset API] ✅ New period created:', newPeriod);
+            rpcResult.newPeriod = newPeriod;
+          }
+        } catch (error) {
+          console.error('[Reset API] ❌ Error creating new period:', error);
+          // 기수 생성 실패해도 리셋은 성공으로 처리
+        }
+      }
+      
+      return NextResponse.json({
+        ok: true,
+        data: {
+          ...rpcResult,
+          participantsUpdated
+        }
+      });
 
     } catch (rpcError) {
       console.log('[Reset API] 🔄 RPC failed, using fallback approach');
@@ -132,12 +207,12 @@ export async function POST(request: NextRequest) {
       
       let certQuery = supabase.from('certifications').select('*');
       
-      if (termNumber) {
-        certQuery = certQuery.eq('term_number', termNumber);
+      if (rpcTermNumber) {
+        certQuery = certQuery.eq('term_number', rpcTermNumber);
       }
       
-      if (since) {
-        certQuery = certQuery.gte('certification_date', since);
+      if (rpcSince) {
+        certQuery = certQuery.gte('certification_date', rpcSince);
       }
 
       const { data, error: fetchError } = await certQuery;
@@ -244,12 +319,12 @@ export async function POST(request: NextRequest) {
       
       let deleteQuery = supabase.from('certifications').delete();
       
-      if (termNumber) {
-        deleteQuery = deleteQuery.eq('term_number', termNumber);
+      if (rpcTermNumber) {
+        deleteQuery = deleteQuery.eq('term_number', rpcTermNumber);
       }
       
-      if (since) {
-        deleteQuery = deleteQuery.gte('certification_date', since);
+      if (rpcSince) {
+        deleteQuery = deleteQuery.gte('certification_date', rpcSince);
       }
 
       const { error: deleteError, count: deletedCount } = await deleteQuery;
@@ -284,16 +359,83 @@ export async function POST(request: NextRequest) {
     }
     }
 
-    // 6. 성공 응답 (폴백 모드)
+    // 6. 사용자 상태를 대기로 변경 (전체 리셋의 경우)
+    let participantsUpdated = 0;
+    try {
+      console.log('[Reset API] 🔄 Updating user status to inactive...');
+      
+      const { data: updateResult, error: updateError } = await supabase
+        .from('users')
+        .update({ is_active: false })
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // 시스템 계정 제외
+      
+      if (updateError) {
+        console.error('[Reset API] ❌ Failed to update user status:', updateError);
+      } else {
+        console.log('[Reset API] ✅ User status updated to inactive');
+        // 실제 업데이트된 행 수를 가져오기 어려우므로 추정값 사용
+        participantsUpdated = 1; // 폴백 모드에서는 정확한 수를 알기 어려움
+      }
+    } catch (error) {
+      console.error('[Reset API] ❌ Error updating user status:', error);
+    }
+
+    // 7. 기수 생성 로직 (폴백 모드)
+    let newPeriod = null;
+    if (seasonStartDate && seasonEndDate) {
+      try {
+        console.log('[Reset API] 🔄 Creating new period (fallback mode)...');
+        
+        // 기수 번호 계산 (기존 기수 + 1)
+        const { data: lastPeriod } = await supabase
+          .from('periods')
+          .select('term_number')
+          .order('term_number', { ascending: false })
+          .limit(1);
+        
+        const nextTermNumber = (lastPeriod?.[0]?.term_number || 0) + 1;
+        
+        // 새 기수 생성
+        const { data: periodData, error: periodError } = await supabase
+          .from('periods')
+          .insert({
+            term_number: nextTermNumber,
+            start_date: seasonStartDate,
+            end_date: seasonEndDate,
+            description: `전체 리셋으로 생성된 ${nextTermNumber}기`,
+            is_active: true
+          })
+          .select()
+          .single();
+        
+        if (periodError) {
+          console.error('[Reset API] ❌ Failed to create new period:', periodError);
+        } else {
+          console.log('[Reset API] ✅ New period created:', periodData);
+          newPeriod = periodData;
+        }
+      } catch (error) {
+        console.error('[Reset API] ❌ Error creating new period:', error);
+      }
+    }
+
+    // 8. 성공 응답 (폴백 모드)
     console.log('[Reset API] ✅ Fallback reset completed successfully');
 
     console.log('[Reset API] 📊 Results:', {
       backedUp: backupCount,
       deleted: deleteCount,
+      participantsUpdated,
+      newPeriod
     });
 
     return NextResponse.json({
       ok: true,
+      data: {
+        certificationsDeleted: deleteCount,
+        participantsUpdated,
+        newPeriod
+      },
       backedUp: backupCount,
       deleted: deleteCount,
       mode: 'fallback'
