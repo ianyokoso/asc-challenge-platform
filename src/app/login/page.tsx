@@ -20,7 +20,9 @@ export default function LoginPage() {
   }, []);
 
   const checkUser = async () => {
+    console.debug('[Login] 🔍 Checking current user...');
     const currentUser = await getUser();
+    console.debug('[Login] 📋 User check result:', currentUser ? 'logged in' : 'not logged in');
     setUser(currentUser);
   };
 
@@ -32,10 +34,12 @@ export default function LoginPage() {
 
   const handleDiscordLogin = async () => {
     try {
+      console.debug('[Login] 🔄 Starting Discord login process...');
       setIsLoading(true);
       await signInWithDiscord();
+      console.debug('[Login] ✅ Discord login initiated successfully');
     } catch (error) {
-      console.error('❌ Login failed:', error);
+      console.error('[Login] ❌ Login failed:', error);
       alert('로그인에 실패했습니다. 다시 시도해주세요.');
       setIsLoading(false);
     }

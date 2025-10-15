@@ -6,9 +6,20 @@ export async function middleware(request: NextRequest) {
     request,
   });
 
+  // Allow auth-related routes to pass through without authentication checks
+  const { pathname } = request.nextUrl;
+  const isAuthRoute = pathname.startsWith('/auth/') || 
+                     pathname.startsWith('/login') || 
+                     pathname.startsWith('/api/auth/');
+  
+  if (isAuthRoute) {
+    console.debug('[Middleware] 🔓 Auth route detected, allowing access:', pathname);
+    return supabaseResponse;
+  }
+
   // Check if Supabase environment variables are set
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    console.warn('Supabase environment variables not set, skipping auth middleware');
+    console.warn('[Middleware] ⚠️ Supabase environment variables not set, skipping auth middleware');
     return supabaseResponse;
   }
 
@@ -48,7 +59,7 @@ export async function middleware(request: NextRequest) {
     if (request.nextUrl.pathname.startsWith('/admin')) {
       // 로그인하지 않은 경우 로그인 페이지로 리다이렉션
       if (!user) {
-        console.log('[Middleware] Unauthorized access to admin page, redirecting to login');
+        console.debug('[Middleware] 🚫 Unauthorized access to admin page, redirecting to login');
         const loginUrl = new URL('/login', request.url);
         loginUrl.searchParams.set('error', '로그인이 필요합니다');
         loginUrl.searchParams.set('redirect', request.nextUrl.pathname);
@@ -61,16 +72,16 @@ export async function middleware(request: NextRequest) {
       });
 
       if (error || !isAdmin) {
-        console.log('[Middleware] Non-admin user tried to access admin page:', user.id);
+        console.debug('[Middleware] 🚫 Non-admin user tried to access admin page:', user.id);
         const homeUrl = new URL('/', request.url);
         homeUrl.searchParams.set('error', '관리자만 접근할 수 있습니다');
         return NextResponse.redirect(homeUrl);
       }
 
-      console.log('[Middleware] Admin access granted for user:', user.id);
+      console.debug('[Middleware] ✅ Admin access granted for user:', user.id);
     }
   } catch (error) {
-    console.error('Middleware error:', error);
+    console.error('[Middleware] ❌ Middleware error:', error);
     // Continue even if there's an error
   }
 
