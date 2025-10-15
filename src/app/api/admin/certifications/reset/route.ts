@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { verifyAdminUser } from '@/lib/api/admin-guard';
+import { fetch } from 'undici';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -19,6 +20,25 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 export async function POST(request: NextRequest) {
   try {
     console.log('[Reset API] 🚀 Request received');
+
+    // DEMO_MODE 우회 처리
+    if (process.env.DEMO_MODE === 'true') {
+      console.log('[Reset API] 🎭 DEMO_MODE enabled, skipping actual reset');
+      return NextResponse.json({ ok: true, demo: true });
+    }
+
+    // 환경변수 검증
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('[Reset API] ❌ Missing required environment variables');
+      return NextResponse.json(
+        { 
+          ok: false, 
+          message: 'Missing SUPABASE environment variables',
+          step: 'environment_check'
+        },
+        { status: 500 }
+      );
+    }
 
     // 1. 관리자 인증 확인
     const adminEmail = await verifyAdminUser(request);
@@ -72,7 +92,8 @@ export async function POST(request: NextRequest) {
       auth: {
         autoRefreshToken: false,
         persistSession: false
-      }
+      },
+      global: { fetch }
     });
 
     // 4. 관리자 정보 조회
@@ -95,6 +116,42 @@ export async function POST(request: NextRequest) {
     // 5. 트랜잭션 시작 (백업 → 삭제 → 참여자 상태 변경)
     console.log('[Reset API] 🔄 Starting reset transaction...');
 
+    // 5-0. 백업 테이블 보장 (없으면 생성)
+    console.log('[Reset API] 🔧 Ensuring backup table exists...');
+    try {
+      const { error: createTableError } = await supabase.rpc('create_certifications_backup_table_if_not_exists');
+      if (createTableError) {
+        console.error('[Reset API] ❌ Failed to create backup table:', createTableError);
+        // 테이블 생성 실패 시 수동으로 시도
+        const { error: manualCreateError } = await supabase
+          .from('certifications_backup')
+          .select('id')
+          .limit(1);
+        
+        if (manualCreateError && manualCreateError.code === 'PGRST116') {
+          console.error('[Reset API] ❌ Backup table does not exist and cannot be created');
+          return NextResponse.json(
+            { 
+              ok: false, 
+              message: 'Backup table creation failed: ' + createTableError.message,
+              step: 'backup_table_creation'
+            },
+            { status: 500 }
+          );
+        }
+      }
+    } catch (error) {
+      console.error('[Reset API] ❌ Error checking/creating backup table:', error);
+      return NextResponse.json(
+        { 
+          ok: false, 
+          message: 'Failed to ensure backup table exists: ' + (error instanceof Error ? error.message : 'Unknown error'),
+          step: 'backup_table_check'
+        },
+        { status: 500 }
+      );
+    }
+
     // 5-1. 삭제 대상 인증 기록 조회
     let certQuery = supabase
       .from('certifications')
@@ -110,7 +167,7 @@ export async function POST(request: NextRequest) {
     if (fetchError) {
       console.error('[Reset API] ❌ Failed to fetch certifications:', fetchError);
       return NextResponse.json(
-        { error: 'Failed to fetch certifications to delete' },
+        { ok: false, message: 'Failed to fetch certifications to delete: ' + fetchError.message, step: 'fetch_certifications' },
         { status: 500 }
       );
     }
@@ -119,22 +176,46 @@ export async function POST(request: NextRequest) {
 
     // 5-2. 백업 테이블에 복사
     if (certificationsToDelete && certificationsToDelete.length > 0) {
+      console.log('[Reset API] 📦 Backing up certifications...');
+      
+      // 백업 레코드 생성 (명시적 컬럼 매핑)
       const backupRecords = certificationsToDelete.map(cert => ({
-        ...cert,
-        backed_up_at: new Date().toISOString(),
-        backed_up_by: adminUser.id,
-        backup_reason: reason,
-        original_deleted_at: new Date().toISOString(),
+        id: cert.id,
+        user_id: cert.user_id,
+        track_id: cert.track_id,
+        user_track_id: cert.user_track_id,
+        certification_url: cert.certification_url,
+        certification_date: cert.certification_date,
+        submitted_at: cert.submitted_at,
+        status: cert.status,
+        notes: cert.notes,
+        admin_override: cert.admin_override,
+        admin_override_by: cert.admin_override_by,
+        admin_override_at: cert.admin_override_at,
+        created_at: cert.created_at,
+        updated_at: cert.updated_at,
+        backup_at: new Date().toISOString(),
+        term_number: cert.term_number || 1,
+        source_id: cert.id // 원본 ID를 source_id로 저장
       }));
 
+      // 중복 방지를 위한 ON CONFLICT 처리
       const { error: backupError } = await supabase
         .from('certifications_backup')
-        .insert(backupRecords);
+        .upsert(backupRecords, { 
+          onConflict: 'source_id',
+          ignoreDuplicates: true 
+        });
 
       if (backupError) {
-        console.error('[Reset API] ❌ Backup failed:', backupError);
+        console.error('[Reset API] ❌ Backup failed:', backupError.message, backupError.details);
         return NextResponse.json(
-          { error: 'Failed to backup certifications' },
+          { 
+            ok: false, 
+            message: 'Failed to backup certifications: ' + backupError.message,
+            step: 'backup_insert',
+            details: backupError.details
+          },
           { status: 500 }
         );
       }
@@ -142,6 +223,7 @@ export async function POST(request: NextRequest) {
       console.log('[Reset API] ✅ Backup completed');
 
       // 5-3. 인증 기록 삭제
+      console.log('[Reset API] 🗑️ Deleting original certifications...');
       let deleteQuery = supabase
         .from('certifications')
         .delete()
@@ -156,7 +238,7 @@ export async function POST(request: NextRequest) {
       if (deleteError) {
         console.error('[Reset API] ❌ Delete failed:', deleteError);
         return NextResponse.json(
-          { error: 'Failed to delete certifications' },
+          { ok: false, message: 'Failed to delete certifications: ' + deleteError.message, step: 'delete_certifications' },
           { status: 500 }
         );
       }
@@ -165,6 +247,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 5-4. 참여자 상태를 대기(is_active = false)로 변경
+    console.log('[Reset API] 👥 Updating participant status...');
     let updateQuery = supabase
       .from('user_tracks')
       .update({ 
@@ -182,7 +265,7 @@ export async function POST(request: NextRequest) {
     if (updateError) {
       console.error('[Reset API] ❌ Failed to update participants:', updateError);
       return NextResponse.json(
-        { error: 'Failed to update participants status' },
+        { ok: false, message: 'Failed to update participants status: ' + updateError.message, step: 'update_participants' },
         { status: 500 }
       );
     }
@@ -190,6 +273,7 @@ export async function POST(request: NextRequest) {
     console.log('[Reset API] ✅ Participants status updated:', updatedParticipants?.length || 0);
 
     // 5-5. 새로운 기수 생성
+    console.log('[Reset API] 📅 Creating new period...');
     // 가장 최근 기수 번호 조회
     const { data: latestPeriod } = await supabase
       .from('periods')
@@ -223,7 +307,7 @@ export async function POST(request: NextRequest) {
     if (periodError) {
       console.error('[Reset API] ❌ Failed to create new period:', periodError);
       // 기수 생성 실패는 치명적이지 않으므로 경고만 기록
-      console.warn('[Reset API] ⚠️ Continuing without period creation');
+      console.warn('[Reset API] ⚠️ Continuing without period creation:', periodError.message);
     } else {
       console.log('[Reset API] ✅ New period created:', newPeriod?.id, `(${nextTermNumber}기)`);
     }
@@ -231,14 +315,14 @@ export async function POST(request: NextRequest) {
     // 6. 성공 응답
     console.log('[Reset API] ✅ Reset completed successfully');
     console.log('[Reset API] 📊 Results:', {
-      certificationsDeleted: certificationsToDelete?.length || 0,
+      certificationsBackedUp: certificationsToDelete?.length || 0,
       participantsUpdated: updatedParticipants?.length || 0,
       nextSeason: `${seasonStartDate} ~ ${seasonEndDate}`,
     });
 
     return NextResponse.json({
-      success: true,
-      message: 'Reset completed successfully',
+      ok: true,
+      backedUp: certificationsToDelete?.length || 0,
       data: {
         certificationsDeleted: certificationsToDelete?.length || 0,
         participantsUpdated: updatedParticipants?.length || 0,
@@ -259,10 +343,12 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('[Reset API] ❌ Unexpected error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
       { 
-        error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error'
+        ok: false,
+        message: 'Internal server error: ' + errorMessage,
+        step: 'unexpected_error'
       },
       { status: 500 }
     );
