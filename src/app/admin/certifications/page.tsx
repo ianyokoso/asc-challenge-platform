@@ -41,7 +41,13 @@ const resetFormSchema = z.object({
   beforeDate: z.string().min(1, '기준 날짜를 선택해주세요'),
   seasonStartDate: z.string().min(1, '다음 기수 시작일을 선택해주세요'),
   seasonEndDate: z.string().min(1, '다음 기수 종료일을 선택해주세요'),
-  newTermNumber: z.number().min(1, '기수 번호는 1 이상이어야 합니다').optional(),
+  newTermNumber: z.union([
+    z.string().transform((val) => val === '' ? undefined : parseInt(val, 10)),
+    z.number(),
+    z.undefined()
+  ]).refine((val) => val === undefined || (typeof val === 'number' && val >= 1), {
+    message: '기수 번호는 1 이상의 숫자여야 합니다'
+  }).optional(),
   reason: z.string().optional(),
 }).refine((data) => {
   // 시작일이 종료일보다 이전이어야 함
@@ -113,7 +119,7 @@ function CertificationManagementPageContent() {
       beforeDate: today,
       seasonStartDate: format(addDays(new Date(), 1), 'yyyy-MM-dd'),
       seasonEndDate: format(addDays(new Date(), 30), 'yyyy-MM-dd'),
-      newTermNumber: undefined, // 관리자가 직접 입력
+      newTermNumber: undefined, // undefined로 초기화
       reason: '',
     },
   });
@@ -195,7 +201,7 @@ function CertificationManagementPageContent() {
           beforeDate: data.beforeDate,
           seasonStartDate: data.seasonStartDate,
           seasonEndDate: data.seasonEndDate,
-          newTermNumber: data.newTermNumber || undefined,
+          newTermNumber: data.newTermNumber && typeof data.newTermNumber === 'number' ? data.newTermNumber : undefined,
           reason: data.reason || undefined,
         }),
       });
@@ -456,6 +462,10 @@ function CertificationManagementPageContent() {
                             min="1"
                             {...field}
                             value={field.value || ''}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              field.onChange(value === '' ? undefined : parseInt(value, 10));
+                            }}
                           />
                         </FormControl>
                         <FormDescription className="text-body-sm text-gray-500">
