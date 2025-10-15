@@ -6,6 +6,7 @@ import { ko } from 'date-fns/locale';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { useQueryClient } from '@tanstack/react-query';
 import { AdminSidebar } from '@/components/layout/admin-sidebar';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -70,6 +71,7 @@ type ResetFormValues = z.infer<typeof resetFormSchema>;
  */
 function CertificationManagementPageContent() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const today = format(new Date(), 'yyyy-MM-dd');
   const { getContentByKey, getValueByKey, saveContents } = usePageContents('/admin/certifications');
   const { pendingChanges, setSaveHandler } = useEditMode();
@@ -147,6 +149,11 @@ function CertificationManagementPageContent() {
         description: `${responseData.data.certificationsDeleted}개의 인증 기록 삭제 및 ${responseData.data.participantsUpdated}명의 참여자 상태가 대기로 전환되었습니다. ${periodInfo}: ${format(new Date(data.seasonStartDate), 'yyyy.MM.dd', { locale: ko })} ~ ${format(new Date(data.seasonEndDate), 'yyyy.MM.dd', { locale: ko })}`,
       });
 
+      // 캐시 무효화하여 기수 정보 즉시 업데이트
+      queryClient.invalidateQueries({ queryKey: ['active-period'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['users-with-tracks'] });
+      
       // 모달 닫기 및 폼 초기화
       setIsResetModalOpen(false);
       resetForm.reset();

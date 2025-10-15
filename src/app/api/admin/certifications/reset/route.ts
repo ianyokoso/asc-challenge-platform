@@ -170,7 +170,20 @@ export async function POST(request: NextRequest) {
         try {
           console.log(`[Reset API ${requestId}] 🔄 Creating new period (RPC mode)...`);
           
-          // 기수 번호 설정 (관리자가 직접 설정하거나 자동 계산)
+          // 1. 기존 활성 기수들을 모두 비활성화
+          console.log(`[Reset API ${requestId}] 🔄 Deactivating existing active periods...`);
+          const { error: deactivateError } = await admin
+            .from('periods')
+            .update({ is_active: false })
+            .eq('is_active', true);
+          
+          if (deactivateError) {
+            console.error(`[Reset API ${requestId}] ❌ Failed to deactivate existing periods:`, deactivateError);
+          } else {
+            console.log(`[Reset API ${requestId}] ✅ Existing periods deactivated`);
+          }
+          
+          // 2. 기수 번호 설정 (관리자가 직접 설정하거나 자동 계산)
           let nextTermNumber;
           if (newTermNumber && typeof newTermNumber === 'number') {
             nextTermNumber = newTermNumber;
@@ -187,7 +200,7 @@ export async function POST(request: NextRequest) {
             console.log(`[Reset API ${requestId}] 📋 Auto-calculated term number: ${nextTermNumber}`);
           }
           
-          // 새 기수 생성
+          // 3. 새 기수 생성
           const { data: periodData, error: periodError } = await admin
             .from('periods')
             .insert({
@@ -410,7 +423,20 @@ export async function POST(request: NextRequest) {
         try {
           console.log(`[Reset API ${requestId}] 🔄 Creating new period (fallback mode)...`);
           
-          // 기수 번호 설정 (관리자가 직접 설정하거나 자동 계산)
+          // 1. 기존 활성 기수들을 모두 비활성화
+          console.log(`[Reset API ${requestId}] 🔄 Deactivating existing active periods...`);
+          const { error: deactivateError } = await admin
+            .from('periods')
+            .update({ is_active: false })
+            .eq('is_active', true);
+          
+          if (deactivateError) {
+            console.error(`[Reset API ${requestId}] ❌ Failed to deactivate existing periods:`, deactivateError);
+          } else {
+            console.log(`[Reset API ${requestId}] ✅ Existing periods deactivated`);
+          }
+          
+          // 2. 기수 번호 설정 (관리자가 직접 설정하거나 자동 계산)
           let nextTermNumber;
           if (newTermNumber && typeof newTermNumber === 'number') {
             nextTermNumber = newTermNumber;
@@ -427,7 +453,7 @@ export async function POST(request: NextRequest) {
             console.log(`[Reset API ${requestId}] 📋 Auto-calculated term number: ${nextTermNumber}`);
           }
           
-          // 새 기수 생성
+          // 3. 새 기수 생성
           const { data: periodData, error: periodError } = await admin
             .from('periods')
             .insert({

@@ -36,7 +36,7 @@ export function useActivePeriod() {
 
       return data;
     },
-    staleTime: 5 * 60 * 1000, // 5분 동안 캐시 유지
+    staleTime: 30 * 1000, // 30초 동안 캐시 유지 (더 자주 업데이트)
     retry: 3,
   });
 }

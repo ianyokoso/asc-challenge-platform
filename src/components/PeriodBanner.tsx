@@ -17,6 +17,7 @@ export function PeriodBanner() {
   }
 
   const today = toKSTMidnight(getNow()); // 데모 모드 고려 + KST 기준
+  const startDate = toKSTMidnight(activePeriod.start_date);
   const endDate = toKSTMidnight(activePeriod.end_date);
   const daysRemaining = differenceInDays(endDate, today);
   
