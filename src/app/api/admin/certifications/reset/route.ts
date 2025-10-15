@@ -1,7 +1,8 @@
+export const runtime = 'nodejs';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { verifyAdminUser } from '@/lib/api/admin-guard';
-import { fetch } from 'undici';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -92,8 +93,7 @@ export async function POST(request: NextRequest) {
       auth: {
         autoRefreshToken: false,
         persistSession: false
-      },
-      global: { fetch }
+      }
     });
 
     // 4. 관리자 정보 조회
