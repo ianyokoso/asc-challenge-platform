@@ -144,7 +144,6 @@ export async function getUsersWithTracks(): Promise<any[]> {
         track:tracks(*)
       )
     `)
-    .eq('is_active', true)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -167,8 +166,13 @@ export async function getUsersWithTracks(): Promise<any[]> {
 export async function getAdminStats() {
   const supabase = createClient();
   
-  // 전체 사용자 수
+  // 전체 사용자 수 (모든 사용자 포함)
   const { count: totalUsers } = await supabase
+    .from('users')
+    .select('*', { count: 'exact', head: true });
+
+  // 활성 사용자 수
+  const { count: activeUsers } = await supabase
     .from('users')
     .select('*', { count: 'exact', head: true })
     .eq('is_active', true);
@@ -180,7 +184,7 @@ export async function getAdminStats() {
     .select('*', { count: 'exact', head: true })
     .eq('certification_date', today);
 
-  // 경고 대상자 수
+  // 경고 대상자 수 (활성 트랙 참여자 중)
   const { count: dropoutCandidates } = await supabase
     .from('user_tracks')
     .select('*', { count: 'exact', head: true })
@@ -189,6 +193,7 @@ export async function getAdminStats() {
 
   return {
     totalUsers: totalUsers || 0,
+    activeUsers: activeUsers || 0,
     todayCertifications: todayCertifications || 0,
     dropoutCandidates: dropoutCandidates || 0,
   };
