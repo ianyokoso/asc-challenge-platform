@@ -151,13 +151,13 @@ export async function getUsersWithTracks(): Promise<any[]> {
     return [];
   }
 
-  // Filter to only show active tracks in the returned data
-  const usersWithActiveTracks = (data || []).map(user => ({
+  // Return all tracks for admin management (both active and inactive)
+  const usersWithAllTracks = (data || []).map(user => ({
     ...user,
-    user_tracks: user.user_tracks?.filter((ut: any) => ut.is_active) || [],
+    user_tracks: user.user_tracks || [],
   }));
 
-  return usersWithActiveTracks;
+  return usersWithAllTracks;
 }
 
 /**

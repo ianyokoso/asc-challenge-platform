@@ -40,8 +40,7 @@ export function TrackAssignmentDialog({
       console.log('[TrackAssignmentDialog] 📋 User tracks:', user.user_tracks);
       
       const existingTrackIds = user?.user_tracks
-        ?.filter((ut: any) => ut.is_active)
-        .map((ut: any) => ut.track_id) || [];
+        ?.map((ut: any) => ut.track_id) || [];
       
       console.log('[TrackAssignmentDialog] ✅ Existing track IDs:', existingTrackIds);
       setSelectedTrackIds(existingTrackIds);
