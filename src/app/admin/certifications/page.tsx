@@ -41,6 +41,7 @@ const resetFormSchema = z.object({
   beforeDate: z.string().min(1, '기준 날짜를 선택해주세요'),
   seasonStartDate: z.string().min(1, '다음 기수 시작일을 선택해주세요'),
   seasonEndDate: z.string().min(1, '다음 기수 종료일을 선택해주세요'),
+  newTermNumber: z.number().min(1, '기수 번호는 1 이상이어야 합니다').optional(),
   reason: z.string().optional(),
 }).refine((data) => {
   // 시작일이 종료일보다 이전이어야 함
@@ -112,6 +113,7 @@ function CertificationManagementPageContent() {
       beforeDate: today,
       seasonStartDate: format(addDays(new Date(), 1), 'yyyy-MM-dd'),
       seasonEndDate: format(addDays(new Date(), 30), 'yyyy-MM-dd'),
+      newTermNumber: undefined, // 관리자가 직접 입력
       reason: '',
     },
   });
@@ -193,6 +195,7 @@ function CertificationManagementPageContent() {
           beforeDate: data.beforeDate,
           seasonStartDate: data.seasonStartDate,
           seasonEndDate: data.seasonEndDate,
+          newTermNumber: data.newTermNumber || undefined,
           reason: data.reason || undefined,
         }),
       });
@@ -437,6 +440,31 @@ function CertificationManagementPageContent() {
                       )}
                     />
                   </div>
+
+                  <FormField
+                    control={resetForm.control}
+                    name="newTermNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-body font-medium text-gray-900">
+                          다음 기수 번호 (선택)
+                        </FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            placeholder="예: 2 (입력하지 않으면 자동 계산)"
+                            min="1"
+                            {...field}
+                            value={field.value || ''}
+                          />
+                        </FormControl>
+                        <FormDescription className="text-body-sm text-gray-500">
+                          기수 번호를 직접 설정하거나 비워두면 자동으로 계산됩니다.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
                   <FormField
                     control={resetForm.control}

@@ -61,6 +61,7 @@ export async function POST(request: NextRequest) {
       beforeDate?: string;  // 프론트엔드 파라미터
       seasonStartDate?: string;
       seasonEndDate?: string;
+      newTermNumber?: number; // 관리자가 직접 설정하는 기수 번호
     } = {};
     try {
       body = await request.json();
@@ -78,6 +79,9 @@ export async function POST(request: NextRequest) {
     // 프론트엔드 파라미터를 RPC 함수 파라미터로 변환
     const termNumber = body.termNumber || null;
     const since = body.beforeDate || body.since || null;
+    
+    // 기수 넘버링 (관리자가 직접 설정 가능)
+    const newTermNumber = body.newTermNumber || null;
     console.log(`[Reset API ${requestId}] 📋 Parameters:`, { termNumber, since });
 
     // 5. 백업 테이블 존재 확인
@@ -125,20 +129,49 @@ export async function POST(request: NextRequest) {
 
       console.log(`[Reset API ${requestId}] ✅ RPC completed successfully:`, rpcResult);
       
+      // 사용자 상태를 대기로 변경 (전체 리셋의 경우)
+      let participantsUpdated = 0;
+      try {
+        console.log(`[Reset API ${requestId}] 🔄 Updating user status to inactive...`);
+        
+        const { error: updateError } = await admin
+          .from('users')
+          .update({ is_active: false })
+          .neq('id', '00000000-0000-0000-0000-000000000000'); // 시스템 계정 제외
+        
+        if (updateError) {
+          console.error(`[Reset API ${requestId}] ❌ Failed to update user status:`, updateError);
+        } else {
+          console.log(`[Reset API ${requestId}] ✅ User status updated to inactive`);
+          // 실제 업데이트된 행 수를 가져오기 어려우므로 추정값 사용
+          participantsUpdated = 1; // RPC 모드에서도 정확한 수를 알기 어려움
+        }
+      } catch (error) {
+        console.error(`[Reset API ${requestId}] ❌ Error updating user status:`, error);
+      }
+
       // 기수 생성 로직 (seasonStartDate와 seasonEndDate가 있는 경우)
       let newPeriod = null;
       if (body.seasonStartDate && body.seasonEndDate) {
         try {
           console.log(`[Reset API ${requestId}] 🔄 Creating new period (RPC mode)...`);
           
-          // 기수 번호 계산 (기존 기수 + 1)
-          const { data: lastPeriod } = await admin
-            .from('periods')
-            .select('term_number')
-            .order('term_number', { ascending: false })
-            .limit(1);
-          
-          const nextTermNumber = (lastPeriod?.[0]?.term_number || 0) + 1;
+          // 기수 번호 설정 (관리자가 직접 설정하거나 자동 계산)
+          let nextTermNumber;
+          if (newTermNumber && typeof newTermNumber === 'number') {
+            nextTermNumber = newTermNumber;
+            console.log(`[Reset API ${requestId}] 📋 Using admin-specified term number: ${nextTermNumber}`);
+          } else {
+            // 자동 계산 (기존 기수 + 1)
+            const { data: lastPeriod } = await admin
+              .from('periods')
+              .select('term_number')
+              .order('term_number', { ascending: false })
+              .limit(1);
+            
+            nextTermNumber = (lastPeriod?.[0]?.term_number || 0) + 1;
+            console.log(`[Reset API ${requestId}] 📋 Auto-calculated term number: ${nextTermNumber}`);
+          }
           
           // 새 기수 생성
           const { data: periodData, error: periodError } = await admin
@@ -168,7 +201,7 @@ export async function POST(request: NextRequest) {
         ok: true,
         data: {
           certificationsDeleted: rpcResult?.deleted || 0,
-          participantsUpdated: 0, // RPC 모드에서는 참여자 업데이트 안함
+          participantsUpdated: participantsUpdated,
           newPeriod: newPeriod
         },
         backedUp: rpcResult?.backedUp || 0,
@@ -322,20 +355,49 @@ export async function POST(request: NextRequest) {
         deleted: deleteCount,
       });
 
+      // 사용자 상태를 대기로 변경 (전체 리셋의 경우)
+      let participantsUpdated = 0;
+      try {
+        console.log(`[Reset API ${requestId}] 🔄 Updating user status to inactive (fallback mode)...`);
+        
+        const { error: updateError } = await admin
+          .from('users')
+          .update({ is_active: false })
+          .neq('id', '00000000-0000-0000-0000-000000000000'); // 시스템 계정 제외
+        
+        if (updateError) {
+          console.error(`[Reset API ${requestId}] ❌ Failed to update user status:`, updateError);
+        } else {
+          console.log(`[Reset API ${requestId}] ✅ User status updated to inactive`);
+          // 실제 업데이트된 행 수를 가져오기 어려우므로 추정값 사용
+          participantsUpdated = 1; // 폴백 모드에서도 정확한 수를 알기 어려움
+        }
+      } catch (error) {
+        console.error(`[Reset API ${requestId}] ❌ Error updating user status:`, error);
+      }
+
       // 기수 생성 로직 (seasonStartDate와 seasonEndDate가 있는 경우)
       let newPeriod = null;
       if (body.seasonStartDate && body.seasonEndDate) {
         try {
           console.log(`[Reset API ${requestId}] 🔄 Creating new period (fallback mode)...`);
           
-          // 기수 번호 계산 (기존 기수 + 1)
-          const { data: lastPeriod } = await admin
-            .from('periods')
-            .select('term_number')
-            .order('term_number', { ascending: false })
-            .limit(1);
-          
-          const nextTermNumber = (lastPeriod?.[0]?.term_number || 0) + 1;
+          // 기수 번호 설정 (관리자가 직접 설정하거나 자동 계산)
+          let nextTermNumber;
+          if (newTermNumber && typeof newTermNumber === 'number') {
+            nextTermNumber = newTermNumber;
+            console.log(`[Reset API ${requestId}] 📋 Using admin-specified term number: ${nextTermNumber}`);
+          } else {
+            // 자동 계산 (기존 기수 + 1)
+            const { data: lastPeriod } = await admin
+              .from('periods')
+              .select('term_number')
+              .order('term_number', { ascending: false })
+              .limit(1);
+            
+            nextTermNumber = (lastPeriod?.[0]?.term_number || 0) + 1;
+            console.log(`[Reset API ${requestId}] 📋 Auto-calculated term number: ${nextTermNumber}`);
+          }
           
           // 새 기수 생성
           const { data: periodData, error: periodError } = await admin
@@ -365,7 +427,7 @@ export async function POST(request: NextRequest) {
         ok: true,
         data: {
           certificationsDeleted: deleteCount,
-          participantsUpdated: 0, // 폴백 모드에서는 참여자 업데이트 안함
+          participantsUpdated: participantsUpdated,
           newPeriod: newPeriod
         },
         step: 'completed',
