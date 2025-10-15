@@ -173,6 +173,7 @@ export async function POST(request: NextRequest) {
     // 5-2. 백업 테이블에 복사
     const step_backup = 'backup';
     let backupCount = 0;
+    let deleteCount = 0;
     
     if (certificationsToDelete && certificationsToDelete.length > 0) {
       try {
@@ -237,7 +238,6 @@ export async function POST(request: NextRequest) {
 
     // 5-3. 인증 기록 삭제
     const step_delete = 'delete';
-    let deleteCount = 0;
     
     try {
       console.log('[Reset API] 🗑️ Deleting original certifications...');
@@ -252,7 +252,7 @@ export async function POST(request: NextRequest) {
         deleteQuery = deleteQuery.gte('certification_date', since);
       }
 
-      const { error: deleteError } = await deleteQuery;
+      const { error: deleteError, count: deletedCount } = await deleteQuery;
 
       if (deleteError) {
         console.error('[Reset API] ❌ Delete failed:', deleteError);
@@ -267,7 +267,8 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      deleteCount = certificationsToDelete?.length || 0;
+      // 실제 삭제된 행 수 또는 백업된 행 수 사용
+      deleteCount = deletedCount || certificationsToDelete?.length || 0;
       console.log('[Reset API] ✅ Certifications deleted:', deleteCount, 'records');
       
     } catch (error) {
