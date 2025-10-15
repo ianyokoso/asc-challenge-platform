@@ -54,22 +54,28 @@ const alignToWeekdayKST = (d: Date | string, weekday: number) => {
  * @returns 해당 주의 앵커일
  */
 function getAnchorDate(track: TrackType, dateKST: Date): Date {
+  const day = dateKST.getDay(); // 0=일, 1=월, ...
+  
   if (track === 'short-form') {
     // 숏폼은 앵커일 개념 없음 (평일 매일)
-    return dateKST;
+    return startOfDayKST(dateKST);
   }
   
   if (track === 'long-form' || track === 'builder') {
-    // 롱폼/빌더: 주의 일요일
-    return alignToSundayKST(dateKST);
+    // 롱폼/빌더: 다음 일요일 기준
+    const diff = (7 - day) % 7;  // 다음 일요일까지 남은 일수
+    return addDaysKST(startOfDayKST(dateKST), diff);
   }
   
   if (track === 'sales') {
-    // 세일즈: 주의 화요일
-    return alignToWeekdayKST(dateKST, 2);
+    // 세일즈: 다음 화요일 기준
+    const target = 2; // 화
+    let diff = target - day;
+    if (diff <= 0) diff += 7; // 이미 지났으면 다음주 화요일
+    return addDaysKST(startOfDayKST(dateKST), diff);
   }
   
-  return dateKST;
+  return startOfDayKST(dateKST);
 }
 
 

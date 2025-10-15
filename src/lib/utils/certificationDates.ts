@@ -5,6 +5,31 @@ import { TrackType } from '../supabase/types';
 import { getNow } from './demo-time';
 import { toKSTMidnight, isAfterKST, isBeforeKST } from './date-helpers';
 
+// getAnchorDate 함수 정의 (CertificationCalendar.tsx와 동일한 로직)
+function getAnchorDate(track: TrackType, dateKST: Date): Date {
+  const day = dateKST.getDay(); // 0=일, 1=월, ...
+  
+  if (track === 'short-form') {
+    return dateKST;
+  }
+  
+  if (track === 'long-form' || track === 'builder') {
+    // 롱폼/빌더: 다음 일요일 기준
+    const diff = (7 - day) % 7;  // 다음 일요일까지 남은 일수
+    return addDays(dateKST, diff);
+  }
+  
+  if (track === 'sales') {
+    // 세일즈: 다음 화요일 기준
+    const target = 2; // 화
+    let diff = target - day;
+    if (diff <= 0) diff += 7; // 이미 지났으면 다음주 화요일
+    return addDays(dateKST, diff);
+  }
+  
+  return dateKST;
+}
+
 /**
  * 주간 트랙(Long-form, Builder, Sales)의 다음 인증일을 계산
  * 
@@ -77,8 +102,8 @@ export function getNextCertificationDate(trackType: TrackType, lastCertification
  * 1. 미래 날짜는 인증 불가 (오늘 또는 과거만 가능)
  * 2. 기수 기간 내의 날짜는 모두 인증 가능 (isWithinActivePeriod에서 검증)
  * 3. Short-form: 매일 가능
- * 4. Long-form, Builder, Sales: 기수 기간 내 모든 날짜 가능
- * 5. Sales: 화요일 당일 인증 가능
+ * 4. Long-form, Builder: 언제든 인증 가능 (단, 활성기수 내)
+ * 5. Sales: 전 주 수요일부터 앵커일(화요일)까지 인증 가능
  */
 export function canCertifyForDate(
   trackType: TrackType,
@@ -93,22 +118,27 @@ export function canCertifyForDate(
     return false;
   }
   
-  // Sales 트랙의 경우 화요일 당일 인증 가능
+  // Sales 트랙의 경우 전 주 수요일부터 앵커일(화요일)까지 인증 가능
   if (trackType === 'sales') {
-    const dayOfWeek = target.getDay();
-    // 화요일(2)이거나 과거 날짜면 인증 가능
-    return dayOfWeek === 2 || !isAfterKST(target, today);
+    const anchor = getAnchorDate(trackType, target);
+    const startWindow = addDays(anchor, -6); // 전 주 수요일 (앵커-6)
+    return target >= startWindow && target <= anchor;
   }
   
-  // 오늘 또는 과거 날짜는 모두 인증 가능
-  // (기수 기간 검증은 isWithinActivePeriod에서 처리)
+  // Long-form, Builder: 언제든 인증 가능 (단, 활성기수 내)
+  if (trackType === 'long-form' || trackType === 'builder') {
+    return true;
+  }
+  
+  // Short-form: 매일 가능
   return true;
 }
 
 /**
  * 기본 인증 날짜 제안 (KST 기준)
  * Short-form: certDate 또는 오늘
- * 주간 트랙: 다음 인증일 (1주일 전이면 다음 인증일, 아니면 certDate 또는 오늘)
+ * Long-form/Builder: 항상 다음 일요일 기준
+ * Sales: 항상 다음 화요일 기준
  */
 export function getDefaultCertificationDate(
   trackType: TrackType,
@@ -123,13 +153,20 @@ export function getDefaultCertificationDate(
     return targetDate;
   }
   
-  // 주간 트랙
-  const nextCertDate = getNextCertificationDate(trackType, lastCertificationDate, certDate);
-  const oneWeekBefore = addDays(nextCertDate, -7);
+  // Long-form/Builder: 항상 다음 일요일 기준
+  if (trackType === 'long-form' || trackType === 'builder') {
+    const day = targetDate.getDay();
+    const diff = (7 - day) % 7;  // 다음 일요일까지 남은 일수
+    return addDays(targetDate, diff);
+  }
   
-  // 1주일 전이면 다음 인증일 제안, 아니면 targetDate
-  if (!isAfterKST(oneWeekBefore, targetDate)) {
-    return nextCertDate;
+  // Sales: 항상 다음 화요일 기준
+  if (trackType === 'sales') {
+    const day = targetDate.getDay();
+    const target = 2; // 화
+    let diff = target - day;
+    if (diff <= 0) diff += 7; // 이미 지났으면 다음주 화요일
+    return addDays(targetDate, diff);
   }
   
   return targetDate;
