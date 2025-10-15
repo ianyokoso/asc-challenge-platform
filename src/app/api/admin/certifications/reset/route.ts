@@ -235,37 +235,44 @@ export async function POST(request: NextRequest) {
     try {
       console.log(`[Reset API ${requestId}] 🗑️ Deleting original certifications...`);
       
-      let deleteQuery = admin.from('certifications').delete();
-      
-      if (termNumber) {
-        deleteQuery = deleteQuery.eq('term_number', termNumber);
-      }
-      
-      if (since) {
-        deleteQuery = deleteQuery.gte('certification_date', since);
+      let deleteCount = 0;
+
+      const hasTerm = typeof termNumber === 'number';
+      const hasSince = typeof since === 'string' && since.length > 0;
+
+      let del = admin.from('certifications').delete();
+
+      if (hasTerm) del = del.eq('term_number', termNumber as number);
+      if (hasSince) del = del.gte('certification_date', since as string);
+
+      // WHERE 절이 하나도 없으면, 최소한의 조건을 강제로 추가
+      if (!hasTerm && !hasSince) {
+        del = del.gte('certification_date', '0001-01-01');
       }
 
-      const { error: deleteError, count: deletedCount } = await deleteQuery;
+      const { error: delErr, count: delCnt } = await del.select('id', { count: 'exact' });
 
-      if (deleteError) {
+      if (delErr) {
         const errorResponse = { 
           ok: false, 
           step: step_delete, 
-          message: 'Failed to delete certifications: ' + deleteError.message,
+          message: `Failed to delete certifications: ${delErr.message}`,
           requestId 
         };
         console.error(`[Reset API ${requestId}] ❌`, errorResponse);
         return NextResponse.json(errorResponse, { status: 500 });
       }
 
-      const deleteCount = deletedCount || certificationsToDelete?.length || 0;
-      console.log(`[Reset API ${requestId}] ✅ Certifications deleted:`, deleteCount, 'records');
-      
-      // 성공 응답 (폴백 모드)
-      console.log(`[Reset API ${requestId}] ✅ Fallback reset completed successfully`);
+      deleteCount = delCnt ?? 0;
+
+      console.log(`[Reset API ${requestId}] ✅ Reset complete:`, {
+        backedUp: backupCount,
+        deleted: deleteCount,
+      });
 
       return NextResponse.json({
         ok: true,
+        step: 'completed',
         backedUp: backupCount,
         deleted: deleteCount,
         mode: 'fallback',
