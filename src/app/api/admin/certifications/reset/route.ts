@@ -250,8 +250,8 @@ export async function POST(request: NextRequest) {
         del = del.gte('certification_date', '0001-01-01');
       }
 
-      const { error: delErr, count: delCnt } = await del.select('id', { count: 'exact' });
-
+      const { error: delErr, data: delRows } = await del.select('id');
+      
       if (delErr) {
         const errorResponse = { 
           ok: false, 
@@ -263,7 +263,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(errorResponse, { status: 500 });
       }
 
-      deleteCount = delCnt ?? 0;
+      deleteCount = Array.isArray(delRows) ? delRows.length : 0;
 
       console.log(`[Reset API ${requestId}] ✅ Reset complete:`, {
         backedUp: backupCount,
