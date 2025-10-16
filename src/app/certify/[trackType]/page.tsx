@@ -591,18 +591,19 @@ function localValidate(
   }
 
   if (track === 'sales') {
-    // 매주 화요일 마감, 해당 주 수요일부터 인증 허용 (기수 기간 내에서만)
-    const tuesdayOfWeek = alignToWeekdayKST(certDate, 2); // 해당 주 화요일
-    const wednesdayOfWeek = addDaysKST(tuesdayOfWeek, -6); // 해당 주 수요일
+    // 세일즈 트랙: 기수 기간 내에서만 인증 가능 (매주 화요일 마감)
     const c = startOfDayKST(certDate);
+    const dow = getKSTDay(certDate); // 0=일, 1=월, 2=화, 3=수, 4=목, 5=금, 6=토
     
-    // 기수 시작일과 비교하여 더 늦은 날짜를 선택
-    const cohortStart = activePeriod ? startOfDayKST(activePeriod.start_date) : wednesdayOfWeek;
-    const actualStart = cohortStart.getTime() > wednesdayOfWeek.getTime() ? cohortStart : wednesdayOfWeek;
-    
-    if (c.getTime() < actualStart.getTime() || c.getTime() > tuesdayOfWeek.getTime()) {
-      return { ok: false, message: '세일즈는 매주 화요일 마감이며, 해당 주 수요일부터 인증할 수 있습니다.' };
+    // 기수 시작일 이후부터만 인증 가능
+    if (activePeriod) {
+      const cohortStart = startOfDayKST(activePeriod.start_date);
+      if (c.getTime() < cohortStart.getTime()) {
+        return { ok: false, message: '세일즈 트랙은 기수 시작일 이후부터 인증할 수 있습니다.' };
+      }
     }
+    
+    // 주간 트랙이므로 특별한 요일 제한은 없음 (기수 기간 내에서만)
     return { ok: true };
   }
 
