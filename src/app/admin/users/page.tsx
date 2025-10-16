@@ -159,25 +159,38 @@ export default function AdminUsersPage() {
       // React Query 캐시 무효화로 자동 갱신
       console.log('[handleSaveTrackAssignment] Invalidating React Query cache...');
       
-      // 인증 추적 관련 쿼리들 무효화
-      queryClient.invalidateQueries({
-        queryKey: ['certification-tracking'],
-      });
-      
-      // 사용자 관련 쿼리들 무효화
-      queryClient.invalidateQueries({
-        queryKey: ['users-with-tracks'],
-      });
-      
-      // 트랙 관련 쿼리들 무효화
-      queryClient.invalidateQueries({
-        queryKey: ['tracks'],
-      });
-      
-      // 사용자 트랙 관련 쿼리들 무효화
-      queryClient.invalidateQueries({
-        queryKey: ['user-tracks'],
-      });
+      // 모든 관련 쿼리들을 포괄적으로 무효화
+      await Promise.all([
+        // 인증 추적 관련 쿼리들 무효화
+        queryClient.invalidateQueries({
+          queryKey: ['certification-tracking'],
+        }),
+        
+        // 사용자 관련 쿼리들 무효화
+        queryClient.invalidateQueries({
+          queryKey: ['users-with-tracks'],
+        }),
+        
+        // 트랙 관련 쿼리들 무효화
+        queryClient.invalidateQueries({
+          queryKey: ['tracks'],
+        }),
+        
+        // 사용자 트랙 관련 쿼리들 무효화
+        queryClient.invalidateQueries({
+          queryKey: ['user-tracks'],
+        }),
+        
+        // 활성 기수 관련 쿼리들 무효화
+        queryClient.invalidateQueries({
+          queryKey: ['active-period'],
+        }),
+        
+        // 대시보드 관련 쿼리들 무효화
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard'],
+        })
+      ]);
       
       console.log('[handleSaveTrackAssignment] Cache invalidation completed');
       

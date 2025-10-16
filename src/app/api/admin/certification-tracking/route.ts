@@ -164,7 +164,7 @@ export async function GET(request: NextRequest) {
     for (const track of tracks) {
       const requiredDates = getCohortRequiredDates(periodStart, periodEnd, track.type);
 
-      // 해당 트랙의 참여자 조회 (관리자용 - 모든 사용자 포함)
+      // 해당 트랙의 참여자 조회 (관리자용 - 활성 사용자만)
       const { data: userTracks, error: userTracksError } = await supabase
         .from('user_tracks')
         .select(`
@@ -177,7 +177,8 @@ export async function GET(request: NextRequest) {
             is_active
           )
         `)
-        .eq('track_id', track.id);
+        .eq('track_id', track.id)
+        .eq('is_active', true); // 활성화된 참여자만 조회
 
       if (userTracksError) {
         console.error(`[API] ❌ Error fetching user tracks for ${track.name}:`, userTracksError);

@@ -90,14 +90,29 @@ export function useAllTracksCertificationData(periodId?: string) {
             timestamp: new Date().toISOString(),
           });
           
-          // 트랙 배정 변경 시에도 쿼리 무효화
+          // 트랙 배정 변경 시 포괄적인 쿼리 무효화
           queryClient.invalidateQueries({
-            queryKey: ['certification-tracking', 'all-tracks', periodId || 'default'],
+            queryKey: ['certification-tracking'],
           });
           
           // 사용자 관련 쿼리들도 무효화
           queryClient.invalidateQueries({
             queryKey: ['users-with-tracks'],
+          });
+          
+          // 트랙 관련 쿼리들 무효화
+          queryClient.invalidateQueries({
+            queryKey: ['tracks'],
+          });
+          
+          // 사용자 트랙 관련 쿼리들 무효화
+          queryClient.invalidateQueries({
+            queryKey: ['user-tracks'],
+          });
+          
+          // 대시보드 관련 쿼리들 무효화
+          queryClient.invalidateQueries({
+            queryKey: ['dashboard'],
           });
         }
       )
