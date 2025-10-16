@@ -591,12 +591,17 @@ function localValidate(
   }
 
   if (track === 'sales') {
-    // 매주 화요일 마감, 전주 수요일부터 미리 인증 허용
+    // 매주 화요일 마감, 해당 주 수요일부터 인증 허용 (기수 기간 내에서만)
     const tuesdayOfWeek = alignToWeekdayKST(certDate, 2); // 해당 주 화요일
-    const earlyStart = addDaysKST(tuesdayOfWeek, -6);     // 전주 수요일
+    const wednesdayOfWeek = addDaysKST(tuesdayOfWeek, -6); // 해당 주 수요일
     const c = startOfDayKST(certDate);
-    if (c.getTime() < earlyStart.getTime() || c.getTime() > tuesdayOfWeek.getTime()) {
-      return { ok: false, message: '세일즈는 매주 화요일 마감이며, 전주 수요일부터 인증할 수 있습니다.' };
+    
+    // 기수 시작일과 비교하여 더 늦은 날짜를 선택
+    const cohortStart = activePeriod ? startOfDayKST(activePeriod.start_date) : wednesdayOfWeek;
+    const actualStart = cohortStart.getTime() > wednesdayOfWeek.getTime() ? cohortStart : wednesdayOfWeek;
+    
+    if (c.getTime() < actualStart.getTime() || c.getTime() > tuesdayOfWeek.getTime()) {
+      return { ok: false, message: '세일즈는 매주 화요일 마감이며, 해당 주 수요일부터 인증할 수 있습니다.' };
     }
     return { ok: true };
   }
