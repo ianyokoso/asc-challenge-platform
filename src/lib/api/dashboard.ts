@@ -149,6 +149,12 @@ export async function getDashboardData(periodId?: string): Promise<DashboardData
         `)
         .eq('track_id', track.id);
 
+      console.log(`[getDashboardData] 👥 Track ${track.name} raw userTracks data:`, {
+        userTracks,
+        userTracksError,
+        userTracksLength: userTracks?.length || 0
+      });
+
       if (userTracksError || !userTracks) {
         console.error(`트랙 ${track.name} 참여자 조회 실패:`, userTracksError);
         return null;
@@ -161,7 +167,14 @@ export async function getDashboardData(periodId?: string): Promise<DashboardData
       console.log(`[getDashboardData] 👥 Track ${track.name} participants:`, {
         totalUserTracks: userTracks.length,
         activeUserTracks: activeUserTracks.length,
-        participantIds: participantIds.length
+        participantIds: participantIds.length,
+        userTracksDetails: userTracks.map(ut => ({
+          id: ut.id,
+          user_id: ut.user_id,
+          is_active: ut.is_active,
+          user_is_active: (ut.users as any)?.is_active,
+          discord_username: (ut.users as any)?.discord_username
+        }))
       });
       
       if (participantIds.length === 0) {
