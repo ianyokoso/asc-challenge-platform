@@ -33,6 +33,15 @@ export async function GET(request: NextRequest) {
       .gte('certification_date', format(monthStart, 'yyyy-MM-dd'))
       .lte('certification_date', format(monthEnd, 'yyyy-MM-dd'));
 
+    console.log(`[API] 🔍 Calendar certifications query:`, {
+      userId,
+      trackId,
+      monthStart: format(monthStart, 'yyyy-MM-dd'),
+      monthEnd: format(monthEnd, 'yyyy-MM-dd'),
+      certificationsFound: certifications?.length || 0,
+      certifications: certifications
+    });
+
     if (certError) {
       console.error('[API] ❌ Error fetching certifications:', certError);
       return NextResponse.json(
