@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // 해당 월의 모든 날짜 생성
     const monthStart = startOfMonth(new Date(year, month - 1));
