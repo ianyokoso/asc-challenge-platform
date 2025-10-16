@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,6 +28,7 @@ import { useToast } from '@/hooks/use-toast';
 export default function AdminUsersPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [userId, setUserId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterTrack, setFilterTrack] = useState<string>('all');
@@ -153,6 +155,31 @@ export default function AdminUsersPage() {
         title: '트랙 배정 완료',
         description: message,
       });
+      
+      // React Query 캐시 무효화로 자동 갱신
+      console.log('[handleSaveTrackAssignment] Invalidating React Query cache...');
+      
+      // 인증 추적 관련 쿼리들 무효화
+      queryClient.invalidateQueries({
+        queryKey: ['certification-tracking'],
+      });
+      
+      // 사용자 관련 쿼리들 무효화
+      queryClient.invalidateQueries({
+        queryKey: ['users-with-tracks'],
+      });
+      
+      // 트랙 관련 쿼리들 무효화
+      queryClient.invalidateQueries({
+        queryKey: ['tracks'],
+      });
+      
+      // 사용자 트랙 관련 쿼리들 무효화
+      queryClient.invalidateQueries({
+        queryKey: ['user-tracks'],
+      });
+      
+      console.log('[handleSaveTrackAssignment] Cache invalidation completed');
       
       // Refresh users list
       console.log('[handleSaveTrackAssignment] Refreshing users list...');

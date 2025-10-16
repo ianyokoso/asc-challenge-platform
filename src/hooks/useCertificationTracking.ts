@@ -39,11 +39,11 @@ export function useAllTracksCertificationData(periodId?: string) {
       console.log('[Hook] ✅ Available periods:', result.periods?.length);
       return result; // { data, periods, selectedPeriod } 전체를 반환
     },
-    staleTime: 1000 * 60 * 2, // 2분
-    refetchOnWindowFocus: true, // 창 포커스 시 자동 갱신
+    staleTime: 1000 * 60 * 5, // 5분 (성능 향상을 위해 증가)
+    refetchOnWindowFocus: false, // 창 포커스 시 자동 갱신 비활성화 (성능 향상)
   });
 
-  // Supabase Realtime 구독 - certifications 테이블 변경 감지
+  // Supabase Realtime 구독 - certifications 및 user_tracks 테이블 변경 감지
   useEffect(() => {
     const supabase = createClient();
     
@@ -51,7 +51,7 @@ export function useAllTracksCertificationData(periodId?: string) {
     setRealtimeStatus('connecting');
 
     // certifications 테이블의 모든 변경사항(INSERT, UPDATE, DELETE) 구독
-    const channel = supabase
+    const certChannel = supabase
       .channel(`certification-tracking-${periodId || 'default'}`)
       .on(
         'postgres_changes',
@@ -71,6 +71,33 @@ export function useAllTracksCertificationData(periodId?: string) {
           // 데이터 변경 시 해당 쿼리 무효화 → 자동 refetch
           queryClient.invalidateQueries({
             queryKey: ['certification-tracking', 'all-tracks', periodId || 'default'],
+          });
+        }
+      )
+      // user_tracks 테이블 변경사항도 구독 (트랙 배정/해제 시)
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // 모든 이벤트 타입
+          schema: 'public',
+          table: 'user_tracks',
+        },
+        (payload) => {
+          console.log('[Realtime] ✅ User track change detected:', {
+            eventType: payload.eventType,
+            table: payload.table,
+            data: payload.new || payload.old,
+            timestamp: new Date().toISOString(),
+          });
+          
+          // 트랙 배정 변경 시에도 쿼리 무효화
+          queryClient.invalidateQueries({
+            queryKey: ['certification-tracking', 'all-tracks', periodId || 'default'],
+          });
+          
+          // 사용자 관련 쿼리들도 무효화
+          queryClient.invalidateQueries({
+            queryKey: ['users-with-tracks'],
           });
         }
       )
@@ -96,7 +123,7 @@ export function useAllTracksCertificationData(periodId?: string) {
     return () => {
       console.log('[Realtime] 🔌 Unsubscribing from certification tracking');
       setRealtimeStatus('disconnected');
-      supabase.removeChannel(channel);
+      supabase.removeChannel(certChannel);
     };
   }, [periodId, queryClient]);
 
@@ -116,8 +143,8 @@ export function useTrackCertificationData(trackId: string, year: number, month: 
     queryKey: ['certification-tracking', trackId, year, month],
     queryFn: () => getTrackCertificationData(trackId, year, month),
     enabled: !!trackId,
-    staleTime: 1000 * 60 * 2, // 2분
-    refetchOnWindowFocus: true, // 창 포커스 시 자동 갱신
+    staleTime: 1000 * 60 * 5, // 5분 (성능 향상을 위해 증가)
+    refetchOnWindowFocus: false, // 창 포커스 시 자동 갱신 비활성화 (성능 향상)
   });
 
   // Supabase Realtime 구독 - 특정 트랙의 certifications 변경 감지

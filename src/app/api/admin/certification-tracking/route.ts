@@ -195,7 +195,7 @@ export async function GET(request: NextRequest) {
         continue;
       }
 
-      console.log(`[API] ✅ Found ${userTracks.length} participants for ${track.name}`);
+      // console.log(`[API] ✅ Found ${userTracks.length} participants for ${track.name}`); // 성능 향상을 위해 로깅 제거
 
       // 해당 트랙의 해당 기수 기간 인증 데이터 조회
       const { data: certifications, error: certificationsError } = await supabase
@@ -208,7 +208,7 @@ export async function GET(request: NextRequest) {
       if (certificationsError) {
         console.error(`[API] ❌ Error fetching certifications for ${track.name}:`, certificationsError);
       } else {
-        console.log(`[API] ✅ Fetched ${certifications?.length || 0} certifications for ${track.name}`);
+        // console.log(`[API] ✅ Fetched ${certifications?.length || 0} certifications for ${track.name}`); // 성능 향상을 위해 로깅 제거
       }
 
       // 참여자별 인증 데이터 매핑
@@ -238,7 +238,7 @@ export async function GET(request: NextRequest) {
               submittedAt: cert.submitted_at,
             };
             
-            console.log(`[API] 📅 ${user.discord_username} - ${date}: ${cert.status} → ${certStatus}`);
+            // console.log(`[API] 📅 ${user.discord_username} - ${date}: ${cert.status} → ${certStatus}`); // 성능 향상을 위해 로깅 제거
           } else {
             const today = format(new Date(), 'yyyy-MM-dd');
             certificationsByDate[date] = {
@@ -274,7 +274,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    console.log('[API] ✅ Successfully processed', trackSummaries.length, 'tracks');
+    // console.log('[API] ✅ Successfully processed', trackSummaries.length, 'tracks'); // 성능 향상을 위해 로깅 제거
     return NextResponse.json({ 
       data: trackSummaries,
       periods: allPeriods,
