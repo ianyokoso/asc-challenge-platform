@@ -39,7 +39,15 @@ export async function GET(request: NextRequest) {
       monthStart: format(monthStart, 'yyyy-MM-dd'),
       monthEnd: format(monthEnd, 'yyyy-MM-dd'),
       certificationsFound: certifications?.length || 0,
-      certifications: certifications
+      certifications: certifications,
+      queryParams: {
+        userId,
+        trackId,
+        year,
+        month,
+        monthStartStr: format(monthStart, 'yyyy-MM-dd'),
+        monthEndStr: format(monthEnd, 'yyyy-MM-dd')
+      }
     });
 
     if (certError) {

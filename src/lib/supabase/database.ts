@@ -389,7 +389,24 @@ export async function getCalendarCertifications(
   year: number,
   month: number
 ): Promise<CalendarCertification[]> {
+  console.log(`[getCalendarCertifications] 🔍 Fetching calendar data:`, {
+    userId,
+    trackId,
+    year,
+    month
+  });
+  
   const certifications = await getCertifications(userId, trackId, year, month);
+  
+  console.log(`[getCalendarCertifications] 📊 Found certifications:`, {
+    count: certifications.length,
+    certifications: certifications.map(c => ({
+      id: c.id,
+      certification_date: c.certification_date,
+      status: c.status,
+      track_id: c.track_id
+    }))
+  });
   
   // Convert to calendar format
   const calendarData: CalendarCertification[] = [];
@@ -405,6 +422,12 @@ export async function getCalendarCertifications(
       certification: certification || undefined,
     });
   }
+
+  console.log(`[getCalendarCertifications] ✅ Calendar data generated:`, {
+    totalDays: calendarData.length,
+    certifiedDays: calendarData.filter(d => d.certified).length,
+    certifiedDates: calendarData.filter(d => d.certified).map(d => d.date)
+  });
 
   return calendarData;
 }
