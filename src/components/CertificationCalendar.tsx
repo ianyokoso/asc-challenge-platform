@@ -283,21 +283,30 @@ export function CertificationCalendar({
   };
 
   const isActivatable = (date: Date): boolean => {
-    // 기수 범위 체크(필수)
-    const withinCohort = isWithinCohort(date, activePeriod);
-    if (!withinCohort) {
-      // 디버깅을 위한 로깅 (특정 날짜에만)
-      if (date.getDate() === 5 || date.getDate() === 12) {
-        console.log('[isActivatable] Date outside cohort:', {
-          date: format(date, 'yyyy-MM-dd'),
-          withinCohort,
-          activePeriod: activePeriod ? {
-            start_date: activePeriod.start_date,
-            end_date: activePeriod.end_date
-          } : null
-        });
+    // 기수 범위 체크(필수) - 더 명확한 날짜 비교
+    if (activePeriod) {
+      const certDateStr = format(date, 'yyyy-MM-dd');
+      const startDateStr = activePeriod.start_date.split('T')[0]; // ISO 문자열에서 날짜 부분만 추출
+      const endDateStr = activePeriod.end_date.split('T')[0];
+      
+      // 기수 시작일 이전이거나 종료일 이후면 비활성
+      if (certDateStr < startDateStr || certDateStr > endDateStr) {
+        // 디버깅을 위한 로깅 (특정 날짜에만)
+        if (date.getDate() === 5 || date.getDate() === 12) {
+          console.log('[isActivatable] Date outside cohort (string comparison):', {
+            certDateStr,
+            startDateStr,
+            endDateStr,
+            isBeforeStart: certDateStr < startDateStr,
+            isAfterEnd: certDateStr > endDateStr,
+            activePeriod: {
+              start_date: activePeriod.start_date,
+              end_date: activePeriod.end_date
+            }
+          });
+        }
+        return false;
       }
-      return false;
     }
 
     const dow = getKSTDay(date); // 0=일 1=월 ... 2=화 ... 6=토
