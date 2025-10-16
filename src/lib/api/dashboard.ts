@@ -157,14 +157,16 @@ export async function getDashboardData(periodId?: string): Promise<DashboardData
         };
       }
 
-      // 오늘 인증 완료 수 조회
+      // 오늘 인증 완료 수 조회 (기수 기간 내에서만)
       const { data: todayCertifications, error: certError } = await supabase
         .from('certifications')
         .select('id')
         .eq('track_id', track.id)
         .eq('certification_date', todayStr)
         .in('user_id', participantIds)
-        .in('status', ['submitted', 'approved']);
+        .in('status', ['submitted', 'approved'])
+        .gte('certification_date', period.start_date)
+        .lte('certification_date', period.end_date);
 
       if (certError) {
         console.error(`트랙 ${track.name} 오늘 인증 조회 실패:`, certError);
@@ -190,6 +192,8 @@ export async function getDashboardData(periodId?: string): Promise<DashboardData
             .eq('user_id', participantId)
             .gte('certification_date', fiveDaysAgoStr)
             .lte('certification_date', todayStr)
+            .gte('certification_date', period.start_date)
+            .lte('certification_date', period.end_date)
             .in('status', ['submitted', 'approved']);
 
           if (!recentError && recentCerts) {
@@ -215,6 +219,8 @@ export async function getDashboardData(periodId?: string): Promise<DashboardData
             .eq('user_id', participantId)
             .gte('certification_date', oneWeekAgoStr)
             .lte('certification_date', todayStr)
+            .gte('certification_date', period.start_date)
+            .lte('certification_date', period.end_date)
             .in('status', ['submitted', 'approved']);
 
           if (!recentError && recentCerts) {

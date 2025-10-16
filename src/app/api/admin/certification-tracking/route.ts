@@ -197,13 +197,12 @@ export async function GET(request: NextRequest) {
 
       // console.log(`[API] ✅ Found ${userTracks.length} participants for ${track.name}`); // 성능 향상을 위해 로깅 제거
 
-      // 해당 트랙의 해당 기수 기간 인증 데이터 조회
+      // 해당 트랙의 모든 인증 데이터 조회 (기수 기간 제한 제거)
+      // 참고: 기수 기간 필터링을 제거하여 모든 인증 데이터를 포함
       const { data: certifications, error: certificationsError } = await supabase
         .from('certifications')
         .select('user_id, certification_date, certification_url, submitted_at, status')
-        .eq('track_id', track.id)
-        .gte('certification_date', periodStart)
-        .lte('certification_date', periodEnd);
+        .eq('track_id', track.id);
 
       if (certificationsError) {
         console.error(`[API] ❌ Error fetching certifications for ${track.name}:`, certificationsError);
@@ -218,7 +217,21 @@ export async function GET(request: NextRequest) {
         
         const certificationsByDate: any = {};
 
-        requiredDates.forEach(date => {
+        // 모든 인증 데이터를 날짜별로 매핑
+        const allUserCertDates = new Set<string>();
+        
+        // 사용자의 모든 인증 날짜 수집
+        userCerts.forEach(cert => {
+          const certDate = typeof cert.certification_date === 'string' 
+            ? cert.certification_date.split('T')[0]  // ISO 문자열에서 날짜 부분만 추출
+            : format(new Date(cert.certification_date), 'yyyy-MM-dd');
+          allUserCertDates.add(certDate);
+        });
+        
+        // 기수 기간 내의 필수 날짜들과 사용자 인증 날짜들을 합쳐서 처리
+        const allDates = new Set([...requiredDates, ...Array.from(allUserCertDates)]);
+        
+        allDates.forEach(date => {
           // certification_date를 'yyyy-MM-dd' 형식으로 변환하여 비교
           const cert = userCerts.find(c => {
             const certDate = typeof c.certification_date === 'string' 
@@ -241,8 +254,12 @@ export async function GET(request: NextRequest) {
             // console.log(`[API] 📅 ${user.discord_username} - ${date}: ${cert.status} → ${certStatus}`); // 성능 향상을 위해 로깅 제거
           } else {
             const today = format(new Date(), 'yyyy-MM-dd');
+            // 기수 기간 내의 날짜인지 확인
+            const isRequiredDate = requiredDates.includes(date);
             certificationsByDate[date] = {
-              status: date > today ? 'not-required' : 'missing',
+              status: isRequiredDate 
+                ? (date > today ? 'not-required' : 'missing')
+                : 'not-in-period', // 기수 기간 밖의 날짜
               url: null,
               submittedAt: null,
             };
