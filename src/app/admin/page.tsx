@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { AdminSidebar } from '@/components/layout/admin-sidebar';
 import { Card } from '@/components/ui/card';
@@ -33,6 +34,7 @@ const TRACK_ICONS: Record<ApiDashboardData['tracks'][0]['key'], React.ReactNode>
  */
 function AdminDashboardContent() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [dashboardData, setDashboardData] = useState<ApiDashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -49,6 +51,11 @@ function AdminDashboardContent() {
         setIsLoading(true);
         setError(null);
 
+        // 캐시 무효화로 최신 데이터 보장
+        queryClient.invalidateQueries({
+          queryKey: ['certification-tracking'],
+        });
+
         // 실제 API 호출
         const data = await getDashboardData(activePeriod.id);
         setDashboardData(data);
@@ -61,7 +68,7 @@ function AdminDashboardContent() {
     };
 
     loadDashboardData();
-  }, [activePeriod]);
+  }, [activePeriod, queryClient]);
 
   // 카드 클릭 핸들러
   const handleCardClick = (trackKey: ApiDashboardData['tracks'][0]['key']) => {
