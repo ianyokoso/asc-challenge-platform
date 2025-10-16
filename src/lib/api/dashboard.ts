@@ -118,6 +118,12 @@ export async function getDashboardData(periodId?: string): Promise<DashboardData
       .eq('is_active', true)
       .in('type', ['shortform', 'longform', 'builder', 'sales']);
 
+    console.log('[getDashboardData] 🔍 Tracks query result:', {
+      tracksFound: tracks?.length || 0,
+      tracks: tracks?.map(t => ({ id: t.id, name: t.name, type: t.type })),
+      error: tracksError
+    });
+
     if (tracksError || !tracks) {
       throw new Error('트랙 정보를 조회할 수 없습니다.');
     }
@@ -125,6 +131,12 @@ export async function getDashboardData(periodId?: string): Promise<DashboardData
     // 각 트랙별 데이터 계산
     const trackDataPromises = tracks.map(async (track) => {
       const trackType = track.type as TrackType;
+      
+      console.log(`[getDashboardData] 🔍 Processing track: ${track.name} (${trackType})`, {
+        trackId: track.id,
+        trackName: track.name,
+        trackType: trackType
+      });
       
       // 해당 트랙의 참여자 조회 (관리자용 - 모든 사용자 포함)
       const { data: userTracks, error: userTracksError } = await supabase
@@ -145,6 +157,13 @@ export async function getDashboardData(periodId?: string): Promise<DashboardData
       // 활성 사용자만 필터링 (관리자용)
       const activeUserTracks = userTracks.filter(ut => ut.is_active && (ut.users as any)?.is_active);
       const participantIds = activeUserTracks.map(ut => ut.user_id);
+      
+      console.log(`[getDashboardData] 👥 Track ${track.name} participants:`, {
+        totalUserTracks: userTracks.length,
+        activeUserTracks: activeUserTracks.length,
+        participantIds: participantIds.length
+      });
+      
       if (participantIds.length === 0) {
         return {
           key: trackType,
@@ -173,6 +192,15 @@ export async function getDashboardData(periodId?: string): Promise<DashboardData
       const todayCompleted = todayCertifications?.length || 0;
       const todayTargets = getTodayTargets(trackType, today) * participantIds.length;
       const todayRate = todayTargets > 0 ? Math.round((todayCompleted / todayTargets) * 1000) / 10 : 0;
+
+      console.log(`[getDashboardData] 📊 Track ${track.name} today stats:`, {
+        todayStr,
+        todayCompleted,
+        todayTargets,
+        todayRate,
+        participantCount: participantIds.length,
+        getTodayTargetsResult: getTodayTargets(trackType, today)
+      });
 
       // 탈락 후보 계산 (누적 미이행 기준)
       let dropCandidates = 0;
