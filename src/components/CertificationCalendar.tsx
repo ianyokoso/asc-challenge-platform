@@ -162,7 +162,24 @@ const isWithinCohort = (date: Date, activePeriod?: ActivePeriod | null): boolean
   const startDate = toKSTMidnight(activePeriod.start_date);
   const endDate = toKSTMidnight(activePeriod.end_date);
 
-  return certDate.getTime() >= startDate.getTime() && certDate.getTime() <= endDate.getTime();
+  const isWithin = certDate.getTime() >= startDate.getTime() && certDate.getTime() <= endDate.getTime();
+  
+  // 디버깅을 위한 로깅 (특정 날짜에만)
+  if (date.getDate() === 5 || date.getDate() === 12) {
+    console.log('[isWithinCohort] Debug:', {
+      date: format(date, 'yyyy-MM-dd'),
+      certDate: format(certDate, 'yyyy-MM-dd'),
+      startDate: format(startDate, 'yyyy-MM-dd'),
+      endDate: format(endDate, 'yyyy-MM-dd'),
+      isWithin,
+      activePeriod: activePeriod ? {
+        start_date: activePeriod.start_date,
+        end_date: activePeriod.end_date
+      } : null
+    });
+  }
+
+  return isWithin;
 };
 
 /**
@@ -267,7 +284,21 @@ export function CertificationCalendar({
 
   const isActivatable = (date: Date): boolean => {
     // 기수 범위 체크(필수)
-    if (!isWithinCohort(date, activePeriod)) return false;
+    const withinCohort = isWithinCohort(date, activePeriod);
+    if (!withinCohort) {
+      // 디버깅을 위한 로깅 (특정 날짜에만)
+      if (date.getDate() === 5 || date.getDate() === 12) {
+        console.log('[isActivatable] Date outside cohort:', {
+          date: format(date, 'yyyy-MM-dd'),
+          withinCohort,
+          activePeriod: activePeriod ? {
+            start_date: activePeriod.start_date,
+            end_date: activePeriod.end_date
+          } : null
+        });
+      }
+      return false;
+    }
 
     const dow = getKSTDay(date); // 0=일 1=월 ... 2=화 ... 6=토
 
