@@ -146,19 +146,19 @@ export async function POST(request: NextRequest) {
           console.log(`[Reset API ${requestId}] ✅ User status updated to inactive`);
         }
 
-        // 2. 모든 사용자 트랙 참여를 비활성화 (대기 상태로 전환)
-        console.log(`[Reset API ${requestId}] 🔄 Deactivating all user track enrollments...`);
+        // 2. 모든 사용자 트랙 참여를 완전히 삭제 (전체 리셋)
+        console.log(`[Reset API ${requestId}] 🔄 Deleting all user track enrollments...`);
         
-        const { error: trackUpdateError, count: trackUpdateCount } = await admin
+        const { error: trackDeleteError, count: trackDeleteCount } = await admin
           .from('user_tracks')
-          .update({ is_active: false })
+          .delete()
           .neq('user_id', '00000000-0000-0000-0000-000000000000'); // 시스템 계정 제외
         
-        if (trackUpdateError) {
-          console.error(`[Reset API ${requestId}] ❌ Failed to update user track enrollments:`, trackUpdateError);
+        if (trackDeleteError) {
+          console.error(`[Reset API ${requestId}] ❌ Failed to delete user track enrollments:`, trackDeleteError);
         } else {
-          console.log(`[Reset API ${requestId}] ✅ User track enrollments deactivated:`, trackUpdateCount, 'records');
-          participantsUpdated = trackUpdateCount || 0;
+          console.log(`[Reset API ${requestId}] ✅ User track enrollments deleted:`, trackDeleteCount, 'records');
+          participantsUpdated = trackDeleteCount || 0;
         }
       } catch (error) {
         console.error(`[Reset API ${requestId}] ❌ Error updating user status:`, error);
@@ -399,19 +399,19 @@ export async function POST(request: NextRequest) {
           console.log(`[Reset API ${requestId}] ✅ User status updated to inactive`);
         }
 
-        // 2. 모든 사용자 트랙 참여를 비활성화 (대기 상태로 전환)
-        console.log(`[Reset API ${requestId}] 🔄 Deactivating all user track enrollments (fallback mode)...`);
+        // 2. 모든 사용자 트랙 참여를 완전히 삭제 (전체 리셋)
+        console.log(`[Reset API ${requestId}] 🔄 Deleting all user track enrollments (fallback mode)...`);
         
-        const { error: trackUpdateError, count: trackUpdateCount } = await admin
+        const { error: trackDeleteError, count: trackDeleteCount } = await admin
           .from('user_tracks')
-          .update({ is_active: false })
+          .delete()
           .neq('user_id', '00000000-0000-0000-0000-000000000000'); // 시스템 계정 제외
         
-        if (trackUpdateError) {
-          console.error(`[Reset API ${requestId}] ❌ Failed to update user track enrollments:`, trackUpdateError);
+        if (trackDeleteError) {
+          console.error(`[Reset API ${requestId}] ❌ Failed to delete user track enrollments:`, trackDeleteError);
         } else {
-          console.log(`[Reset API ${requestId}] ✅ User track enrollments deactivated:`, trackUpdateCount, 'records');
-          participantsUpdated = trackUpdateCount || 0;
+          console.log(`[Reset API ${requestId}] ✅ User track enrollments deleted:`, trackDeleteCount, 'records');
+          participantsUpdated = trackDeleteCount || 0;
         }
       } catch (error) {
         console.error(`[Reset API ${requestId}] ❌ Error updating user status:`, error);
