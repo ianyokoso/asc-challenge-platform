@@ -2,20 +2,20 @@
 
 import { User, UserTrack } from '@/lib/supabase/types';
 import { EmptyState } from './EmptyState';
-import { UsersTable } from './UsersTable';
+import { UsersTableComponent } from './UsersTableComponent';
 
-interface UsersTableFeatureProps {
+interface UsersTableProps {
   users: (User & { user_tracks: UserTrack[] })[];
   onManageClick: (user: User) => void;
 }
 
-export const UsersTableFeature = ({
+export const UsersTable = ({
   users,
   onManageClick,
-}: UsersTableFeatureProps) => {
+}: UsersTableProps) => {
   if (users.length === 0) {
     return <EmptyState />;
   }
 
-  return <UsersTable users={users} onManageClick={onManageClick} />;
+  return <UsersTableComponent users={users} onManageClick={onManageClick} />;
 };

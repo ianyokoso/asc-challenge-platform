@@ -2,6 +2,8 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
@@ -90,4 +92,3 @@ export async function GET(request: Request) {
   // No code present - redirect to login
   return NextResponse.redirect(new URL('/login', requestUrl.origin));
 }
-

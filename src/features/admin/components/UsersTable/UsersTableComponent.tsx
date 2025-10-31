@@ -8,7 +8,7 @@ interface UsersTableProps {
   onManageClick: (user: User) => void;
 }
 
-export const UsersTable = ({ users, onManageClick }: UsersTableProps) => (
+export const UsersTableComponent = ({ users, onManageClick }: UsersTableProps) => (
   <div className="overflow-x-auto">
     <table className="w-full">
       <thead>

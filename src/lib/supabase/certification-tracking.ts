@@ -4,8 +4,35 @@
  */
 
 import { createClient } from './client';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isWeekend, getDay } from 'date-fns';
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+  isWeekend,
+  getDay,
+} from 'date-fns';
 
+export interface Certification {
+  status: 'certified' | 'pending' | 'missing' | 'not-required';
+  url: string | null;
+  submittedAt: string | null;
+  notes?: string | null;
+  participant?: Participant;
+  date?: string;
+}
+
+export interface Participant {
+  userId: string;
+  discordUsername: string;
+  discordAvatarUrl: string | null;
+  certifications: {
+    [date: string]: Certification;
+  };
+  totalCertified: number;
+  totalRequired: number;
+  completionRate: number;
+}
 export interface CertificationTrackingData {
   userId: string;
   discordUsername: string;
@@ -32,21 +59,7 @@ export interface TrackCertificationSummary {
   trackId: string;
   trackName: string;
   trackType: string;
-  participants: {
-    userId: string;
-    discordUsername: string;
-    discordAvatarUrl: string | null;
-    certifications: {
-      [date: string]: {
-        status: 'certified' | 'pending' | 'missing' | 'not-required';
-        url: string | null;
-        submittedAt: string | null;
-      };
-    };
-    totalCertified: number;
-    totalRequired: number;
-    completionRate: number;
-  }[];
+  participants: Participant[];
   dates: string[]; // 해당 트랙의 인증 필요 날짜 목록
 }
 
@@ -55,7 +68,7 @@ export interface TrackCertificationSummary {
  */
 function isRequiredDate(date: Date, trackType: string): boolean {
   const dayOfWeek = getDay(date);
-  
+
   switch (trackType) {
     case 'short-form':
       // 월~금 (1-5)
@@ -75,14 +88,18 @@ function isRequiredDate(date: Date, trackType: string): boolean {
 /**
  * 특정 월의 트랙별 인증이 필요한 날짜 목록 생성
  */
-function getRequiredDates(year: number, month: number, trackType: string): string[] {
+function getRequiredDates(
+  year: number,
+  month: number,
+  trackType: string,
+): string[] {
   const start = startOfMonth(new Date(year, month - 1));
   const end = endOfMonth(new Date(year, month - 1));
   const allDates = eachDayOfInterval({ start, end });
-  
+
   return allDates
-    .filter(date => isRequiredDate(date, trackType))
-    .map(date => format(date, 'yyyy-MM-dd'));
+    .filter((date) => isRequiredDate(date, trackType))
+    .map((date) => format(date, 'yyyy-MM-dd'));
 }
 
 /**
@@ -90,13 +107,16 @@ function getRequiredDates(year: number, month: number, trackType: string): strin
  */
 export async function getAllTracksCertificationData(
   year: number,
-  month: number
+  month: number,
 ): Promise<TrackCertificationSummary[]> {
   const supabase = createClient();
-  
+
   try {
-    console.log('[getAllTracksCertificationData] 🚀 Fetching data for:', { year, month });
-    
+    console.log('[getAllTracksCertificationData] 🚀 Fetching data for:', {
+      year,
+      month,
+    });
+
     // 1. 모든 트랙 정보 가져오기
     const { data: tracks, error: tracksError } = await supabase
       .from('tracks')
@@ -104,7 +124,10 @@ export async function getAllTracksCertificationData(
       .eq('is_active', true);
 
     if (tracksError) {
-      console.error('[getAllTracksCertificationData] ❌ Error fetching tracks:', tracksError);
+      console.error(
+        '[getAllTracksCertificationData] ❌ Error fetching tracks:',
+        tracksError,
+      );
       throw tracksError;
     }
 
@@ -112,8 +135,11 @@ export async function getAllTracksCertificationData(
       console.log('[getAllTracksCertificationData] ⚠️ No active tracks found');
       return [];
     }
-    
-    console.log('[getAllTracksCertificationData] ✅ Found tracks:', tracks.length);
+
+    console.log(
+      '[getAllTracksCertificationData] ✅ Found tracks:',
+      tracks.length,
+    );
 
     // 2. 각 트랙별로 데이터 처리
     const trackSummaries: TrackCertificationSummary[] = [];
@@ -125,19 +151,24 @@ export async function getAllTracksCertificationData(
       // 해당 트랙에 참여하는 모든 사용자 조회
       const { data: userTracks, error: userTracksError } = await supabase
         .from('user_tracks')
-        .select(`
+        .select(
+          `
           user_id,
           user:users!inner(
             id,
             discord_username,
             discord_avatar_url
           )
-        `)
+        `,
+        )
         .eq('track_id', track.id)
         .eq('is_active', true);
 
       if (userTracksError) {
-        console.error(`[getAllTracksCertificationData] Error fetching user tracks for ${track.name}:`, userTracksError);
+        console.error(
+          `[getAllTracksCertificationData] Error fetching user tracks for ${track.name}:`,
+          userTracksError,
+        );
         continue;
       }
 
@@ -154,27 +185,44 @@ export async function getAllTracksCertificationData(
       }
 
       // 해당 트랙의 해당 월 모든 인증 데이터 조회
-      const startDate = format(startOfMonth(new Date(year, month - 1)), 'yyyy-MM-dd');
-      const endDate = format(endOfMonth(new Date(year, month - 1)), 'yyyy-MM-dd');
+      const startDate = format(
+        startOfMonth(new Date(year, month - 1)),
+        'yyyy-MM-dd',
+      );
+      const endDate = format(
+        endOfMonth(new Date(year, month - 1)),
+        'yyyy-MM-dd',
+      );
 
-      const { data: certifications, error: certificationsError } = await supabase
-        .from('certifications')
-        .select('user_id, certification_date, certification_url, submitted_at, status')
-        .eq('track_id', track.id)
-        .gte('certification_date', startDate)
-        .lte('certification_date', endDate);
+      const { data: certifications, error: certificationsError } =
+        await supabase
+          .from('certifications')
+          .select(
+            'user_id, certification_date, certification_url, submitted_at, status',
+          )
+          .eq('track_id', track.id)
+          .gte('certification_date', startDate)
+          .lte('certification_date', endDate);
 
       if (certificationsError) {
-        console.error(`[getAllTracksCertificationData] ❌ Error fetching certifications for ${track.name}:`, certificationsError);
+        console.error(
+          `[getAllTracksCertificationData] ❌ Error fetching certifications for ${track.name}:`,
+          certificationsError,
+        );
       } else {
-        console.log(`[getAllTracksCertificationData] ✅ Fetched ${certifications?.length || 0} certifications for ${track.name}`);
+        console.log(
+          `[getAllTracksCertificationData] ✅ Fetched ${
+            certifications?.length || 0
+          } certifications for ${track.name}`,
+        );
       }
 
       // 사용자별로 인증 데이터 매핑
       const participants = userTracks.map((ut: any) => {
         const user = ut.user;
-        const userCerts = certifications?.filter(c => c.user_id === user.id) || [];
-        
+        const userCerts =
+          certifications?.filter((c) => c.user_id === user.id) || [];
+
         // 날짜별 인증 상태 맵핑
         const certificationsByDate: {
           [date: string]: {
@@ -184,22 +232,27 @@ export async function getAllTracksCertificationData(
           };
         } = {};
 
-        requiredDates.forEach(date => {
-          const cert = userCerts.find(c => c.certification_date === date);
-          
+        requiredDates.forEach((date) => {
+          const cert = userCerts.find((c) => c.certification_date === date);
+
           if (cert) {
             // 상태 판단: submitted 또는 approved는 certified로 표시
-            const certStatus = (cert.status === 'approved' || cert.status === 'submitted') 
-              ? 'certified' 
-              : (cert.status === 'rejected' ? 'missing' : 'pending');
-            
+            const certStatus =
+              cert.status === 'approved' || cert.status === 'submitted'
+                ? 'certified'
+                : cert.status === 'rejected'
+                  ? 'missing'
+                  : 'pending';
+
             certificationsByDate[date] = {
               status: certStatus,
               url: cert.certification_url,
               submittedAt: cert.submitted_at,
             };
-            
-            console.log(`[getAllTracksCertificationData] 📅 ${user.discord_username} - ${date}: ${cert.status} → ${certStatus}`);
+
+            console.log(
+              `[getAllTracksCertificationData] 📅 ${user.discord_username} - ${date}: ${cert.status} → ${certStatus}`,
+            );
           } else {
             // 오늘 이후 날짜는 'not-required', 이전 날짜는 'missing'
             const today = format(new Date(), 'yyyy-MM-dd');
@@ -211,9 +264,14 @@ export async function getAllTracksCertificationData(
           }
         });
 
-        const totalCertified = Object.values(certificationsByDate).filter(c => c.status === 'certified').length;
-        const totalRequired = requiredDates.filter(date => date <= format(new Date(), 'yyyy-MM-dd')).length;
-        const completionRate = totalRequired > 0 ? (totalCertified / totalRequired) * 100 : 0;
+        const totalCertified = Object.values(certificationsByDate).filter(
+          (c) => c.status === 'certified',
+        ).length;
+        const totalRequired = requiredDates.filter(
+          (date) => date <= format(new Date(), 'yyyy-MM-dd'),
+        ).length;
+        const completionRate =
+          totalRequired > 0 ? (totalCertified / totalRequired) * 100 : 0;
 
         return {
           userId: user.id,
@@ -235,7 +293,11 @@ export async function getAllTracksCertificationData(
       });
     }
 
-    console.log('[getAllTracksCertificationData] ✅ Successfully processed', trackSummaries.length, 'tracks');
+    console.log(
+      '[getAllTracksCertificationData] ✅ Successfully processed',
+      trackSummaries.length,
+      'tracks',
+    );
     return trackSummaries;
   } catch (error) {
     console.error('[getAllTracksCertificationData] ❌ Unexpected error:', error);
@@ -249,10 +311,10 @@ export async function getAllTracksCertificationData(
 export async function getTrackCertificationData(
   trackId: string,
   year: number,
-  month: number
+  month: number,
 ): Promise<TrackCertificationSummary | null> {
   const supabase = createClient();
-  
+
   try {
     // 1. 트랙 정보 가져오기
     const { data: track, error: trackError } = await supabase
@@ -277,19 +339,24 @@ export async function getTrackCertificationData(
     // 2. 해당 트랙에 참여하는 모든 사용자 조회
     const { data: userTracks, error: userTracksError } = await supabase
       .from('user_tracks')
-      .select(`
+      .select(
+        `
         user_id,
         user:users!inner(
           id,
           discord_username,
           discord_avatar_url
         )
-      `)
+      `,
+      )
       .eq('track_id', track.id)
       .eq('is_active', true);
 
     if (userTracksError) {
-      console.error('[getTrackCertificationData] Error fetching user tracks:', userTracksError);
+      console.error(
+        '[getTrackCertificationData] Error fetching user tracks:',
+        userTracksError,
+      );
       throw userTracksError;
     }
 
@@ -304,26 +371,36 @@ export async function getTrackCertificationData(
     }
 
     // 3. 해당 트랙의 해당 월 모든 인증 데이터 조회
-    const startDate = format(startOfMonth(new Date(year, month - 1)), 'yyyy-MM-dd');
+    const startDate = format(
+      startOfMonth(new Date(year, month - 1)),
+      'yyyy-MM-dd',
+    );
     const endDate = format(endOfMonth(new Date(year, month - 1)), 'yyyy-MM-dd');
 
-    const { data: certifications, error: certificationsError } = await supabase
-      .from('certifications')
-      .select('user_id, certification_date, certification_url, submitted_at, status')
-      .eq('track_id', track.id)
-      .gte('certification_date', startDate)
-      .lte('certification_date', endDate);
+    const { data: certifications, error: certificationsError } =
+      await supabase
+        .from('certifications')
+        .select(
+          'user_id, certification_date, certification_url, submitted_at, status',
+        )
+        .eq('track_id', track.id)
+        .gte('certification_date', startDate)
+        .lte('certification_date', endDate);
 
     if (certificationsError) {
-      console.error('[getTrackCertificationData] Error fetching certifications:', certificationsError);
+      console.error(
+        '[getTrackCertificationData] Error fetching certifications:',
+        certificationsError,
+      );
       throw certificationsError;
     }
 
     // 4. 사용자별로 인증 데이터 매핑
     const participants = userTracks.map((ut: any) => {
       const user = ut.user;
-      const userCerts = certifications?.filter(c => c.user_id === user.id) || [];
-      
+      const userCerts =
+        certifications?.filter((c) => c.user_id === user.id) || [];
+
       // 날짜별 인증 상태 맵핑
       const certificationsByDate: {
         [date: string]: {
@@ -333,15 +410,18 @@ export async function getTrackCertificationData(
         };
       } = {};
 
-      requiredDates.forEach(date => {
-        const cert = userCerts.find(c => c.certification_date === date);
-        
+      requiredDates.forEach((date) => {
+        const cert = userCerts.find((c) => c.certification_date === date);
+
         if (cert) {
           // 상태 판단: submitted 또는 approved는 certified로 표시
-          const certStatus = (cert.status === 'approved' || cert.status === 'submitted') 
-            ? 'certified' 
-            : (cert.status === 'rejected' ? 'missing' : 'pending');
-          
+          const certStatus =
+            cert.status === 'approved' || cert.status === 'submitted'
+              ? 'certified'
+              : cert.status === 'rejected'
+                ? 'missing'
+                : 'pending';
+
           certificationsByDate[date] = {
             status: certStatus,
             url: cert.certification_url,
@@ -358,9 +438,14 @@ export async function getTrackCertificationData(
         }
       });
 
-      const totalCertified = Object.values(certificationsByDate).filter(c => c.status === 'certified').length;
-      const totalRequired = requiredDates.filter(date => date <= format(new Date(), 'yyyy-MM-dd')).length;
-      const completionRate = totalRequired > 0 ? (totalCertified / totalRequired) * 100 : 0;
+      const totalCertified = Object.values(certificationsByDate).filter(
+        (c) => c.status === 'certified',
+      ).length;
+      const totalRequired = requiredDates.filter(
+        (date) => date <= format(new Date(), 'yyyy-MM-dd'),
+      ).length;
+      const completionRate =
+        totalRequired > 0 ? (totalCertified / totalRequired) * 100 : 0;
 
       return {
         userId: user.id,
@@ -385,4 +470,3 @@ export async function getTrackCertificationData(
     throw error;
   }
 }
-
