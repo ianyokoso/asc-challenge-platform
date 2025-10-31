@@ -246,11 +246,7 @@ export async function getUserTracks(userId: string): Promise<UserTrack[]> {
     .from('user_tracks')
     .select('*, track:tracks(*)')
     .eq('user_id', userId)
-    .eq('is_active', true)
-    .order('track(type)', {
-      ascending: true,
-      foreignTable: 'tracks',
-    });
+    .eq('is_active', true);
 
   if (error) {
     console.error('Error getUserTracks:', {
@@ -263,7 +259,21 @@ export async function getUserTracks(userId: string): Promise<UserTrack[]> {
     return []; // Return empty array instead of throwing to prevent app crash
   }
 
-  return data || [];
+  // 트랙 순서 정렬: 숏폼, 롱폼, 빌더, 세일즈
+  const trackOrder: Record<string, number> = {
+    'short-form': 1,
+    'long-form': 2,
+    builder: 3,
+    sales: 4,
+  };
+
+  const sortedData = (data || []).sort((a, b) => {
+    const orderA = trackOrder[a.track?.type || ''] || 999;
+    const orderB = trackOrder[b.track?.type || ''] || 999;
+    return orderA - orderB;
+  });
+
+  return sortedData;
 }
 
 // ============================================

@@ -7,9 +7,17 @@
  * - PATCH: 버그 수정 및 작은 개선
  */
 
-export const APP_VERSION = '1.6.0';
+export const APP_VERSION = '1.7.0';
 
 export const VERSION_HISTORY = [
+  {
+    version: '1.7.0',
+    date: '2025-10-30',
+    changes: [
+      '빌더 트랙 인증 페이지 UI 및 제출 로직 개선',
+      '어드민 트래킹 페이지에 인증 상세 보기 팝업 기능 추가',
+    ],
+  },
   {
     version: '1.6.0',
     date: '2025-10-14',
@@ -308,4 +316,3 @@ export function getVersionInfo() {
     history: VERSION_HISTORY,
   };
 }
-
