@@ -251,7 +251,8 @@ import {
         
         const result = await certifyAction(submissionData);
 
-        if (!result.ok) {
+        // 명시적 타입 가드
+        if ('message' in result) {
           // Error case - result has 'message' property
           console.error('[CertifyPage] ❌ Certification submission failed:', result);
           setError(result.message || '인증 제출에 실패했습니다. 다시 시도해주세요.');
