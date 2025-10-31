@@ -65,7 +65,7 @@ export async function certifyAction(input: unknown): Promise<CertifyResult> {
     hasNotes: !!notes,
   });
 
-  const supabase = createClient();
+  const supabase = await createClient();
 
   try {
     // 1. 멱등성 체크: 동일 키로 이미 처리된 적 있으면 조기 반환
