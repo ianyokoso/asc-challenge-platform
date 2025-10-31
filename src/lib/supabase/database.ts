@@ -1,6 +1,11 @@
 // Supabase database operations
 import { createClient } from './client';
-import { toKSTMidnight, isBeforeKST, isAfterKST, isWithinRangeKST } from '../utils/date-helpers';
+import {
+  toKSTMidnight,
+  isBeforeKST,
+  isAfterKST,
+  isWithinRangeKST,
+} from '../utils/date-helpers';
 import type {
   User,
   Track,
@@ -27,7 +32,7 @@ export async function upsertUserProfile(userData: {
   email?: string;
 }): Promise<User | null> {
   const supabase = createClient();
-  
+
   const { data, error } = await supabase
     .from('users')
     .upsert({
@@ -52,7 +57,7 @@ export async function upsertUserProfile(userData: {
 
 export async function getUserProfile(userId: string): Promise<User | null> {
   const supabase = createClient();
-  
+
   const { data, error } = await supabase
     .from('users')
     .select('*')
@@ -65,7 +70,6 @@ export async function getUserProfile(userId: string): Promise<User | null> {
   }
 
   if (!data) {
-    console.warn('No user profile found for userId:', userId);
     return null;
   }
 
@@ -78,7 +82,7 @@ export async function getUserProfile(userId: string): Promise<User | null> {
 
 export async function getAllTracks(): Promise<Track[]> {
   const supabase = createClient();
-  
+
   const { data, error } = await supabase
     .from('tracks')
     .select('*')
@@ -95,7 +99,7 @@ export async function getAllTracks(): Promise<Track[]> {
 
 export async function getTrackById(trackId: string): Promise<Track | null> {
   const supabase = createClient();
-  
+
   const { data, error } = await supabase
     .from('tracks')
     .select('*')
@@ -110,9 +114,11 @@ export async function getTrackById(trackId: string): Promise<Track | null> {
   return data;
 }
 
-export async function getTrackParticipantCount(trackId: string): Promise<number> {
+export async function getTrackParticipantCount(
+  trackId: string,
+): Promise<number> {
   const supabase = createClient();
-  
+
   const { count, error } = await supabase
     .from('user_tracks')
     .select('*', { count: 'exact', head: true })
@@ -127,20 +133,44 @@ export async function getTrackParticipantCount(trackId: string): Promise<number>
   return count || 0;
 }
 
-export async function getAllTracksWithParticipants(): Promise<(Track & { participant_count: number })[]> {
+export async function getAllTracksWithParticipants(): Promise<
+  (Track & { participant_count: number })[]
+> {
   const supabase = createClient();
-  
-  const tracks = await getAllTracks();
-  
-  const tracksWithCounts = await Promise.all(
-    tracks.map(async (track) => {
-      const count = await getTrackParticipantCount(track.id);
-      return {
-        ...track,
-        participant_count: count,
-      };
-    })
+
+  const { data: tracks, error: tracksError } = await supabase
+    .from('tracks')
+    .select('*')
+    .eq('is_active', true)
+    .order('type');
+
+  if (tracksError) {
+    console.error('Error fetching tracks:', tracksError);
+    return [];
+  }
+
+  const { data: userTracks, error: userTracksError } = await supabase
+    .from('user_tracks')
+    .select('track_id')
+    .eq('is_active', true);
+
+  if (userTracksError) {
+    console.error('Error fetching user tracks:', userTracksError);
+    return [];
+  }
+
+  const participantCounts = userTracks.reduce(
+    (acc, userTrack) => {
+      acc[userTrack.track_id] = (acc[userTrack.track_id] || 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>,
   );
+
+  const tracksWithCounts = tracks.map((track) => ({
+    ...track,
+    participant_count: participantCounts[track.id] || 0,
+  }));
 
   return tracksWithCounts;
 }
@@ -149,9 +179,12 @@ export async function getAllTracksWithParticipants(): Promise<(Track & { partici
 // USER TRACK OPERATIONS
 // ============================================
 
-export async function enrollUserInTrack(userId: string, trackId: string): Promise<UserTrack | null> {
+export async function enrollUserInTrack(
+  userId: string,
+  trackId: string,
+): Promise<UserTrack | null> {
   const supabase = createClient();
-  
+
   // First check if user is already enrolled
   const { data: existing } = await supabase
     .from('user_tracks')
@@ -172,12 +205,15 @@ export async function enrollUserInTrack(userId: string, trackId: string): Promis
 
       if (updateError) {
         console.error('Error reactivating track enrollment:', updateError);
-        throw new Error('트랙 재활성화에 실패했습니다: ' + (updateError.message || JSON.stringify(updateError)));
+        throw new Error(
+          '트랙 재활성화에 실패했습니다: ' +
+            (updateError.message || JSON.stringify(updateError)),
+        );
       }
 
       return updated;
     }
-    
+
     // Already enrolled and active
     return existing as UserTrack;
   }
@@ -195,7 +231,9 @@ export async function enrollUserInTrack(userId: string, trackId: string): Promis
 
   if (error) {
     console.error('Error enrolling user in track:', error);
-    throw new Error('트랙 등록에 실패했습니다: ' + (error.message || JSON.stringify(error)));
+    throw new Error(
+      '트랙 등록에 실패했습니다: ' + (error.message || JSON.stringify(error)),
+    );
   }
 
   return data;
@@ -203,17 +241,19 @@ export async function enrollUserInTrack(userId: string, trackId: string): Promis
 
 export async function getUserTracks(userId: string): Promise<UserTrack[]> {
   const supabase = createClient();
-  
-  console.log('[getUserTracks] Fetching tracks for user:', userId);
-  
+
   const { data, error } = await supabase
     .from('user_tracks')
     .select('*, track:tracks(*)')
     .eq('user_id', userId)
-    .eq('is_active', true);
+    .eq('is_active', true)
+    .order('track(type)', {
+      ascending: true,
+      foreignTable: 'tracks',
+    });
 
   if (error) {
-    console.error('❌ [getUserTracks] Error:', {
+    console.error('Error getUserTracks:', {
       message: error.message,
       details: error.details,
       hint: error.hint,
@@ -223,23 +263,7 @@ export async function getUserTracks(userId: string): Promise<UserTrack[]> {
     return []; // Return empty array instead of throwing to prevent app crash
   }
 
-  console.log('✅ [getUserTracks] Success:', data?.length || 0, 'tracks found');
-  
-  // 트랙 순서 정렬: 숏폼, 롱폼, 빌더, 세일즈
-  const trackOrder: Record<string, number> = {
-    'short-form': 1,
-    'long-form': 2,
-    'builder': 3,
-    'sales': 4,
-  };
-  
-  const sortedData = (data || []).sort((a, b) => {
-    const orderA = trackOrder[a.track?.type || ''] || 999;
-    const orderB = trackOrder[b.track?.type || ''] || 999;
-    return orderA - orderB;
-  });
-  
-  return sortedData;
+  return data || [];
 }
 
 // ============================================
@@ -254,15 +278,7 @@ export async function submitCertification(data: {
   certification_date: string;
 }): Promise<Certification | null> {
   const supabase = createClient();
-  
-  console.log('[submitCertification] 🚀 Starting certification submission:', {
-    user_id: data.user_id,
-    track_id: data.track_id,
-    user_track_id: data.user_track_id,
-    certification_date: data.certification_date,
-    url_length: data.certification_url.length,
-  });
-  
+
   try {
     // 1. 활성 기수 조회
     const { data: activePeriod, error: periodError } = await supabase
@@ -272,7 +288,7 @@ export async function submitCertification(data: {
       .maybeSingle();
 
     if (periodError) {
-      console.error('❌ [submitCertification] Error fetching active period:', periodError);
+      console.error('Error fetching active period:', periodError);
     }
 
     // 2. 인증 날짜가 활성 기수 기간 내에 있는지 확인 (KST 기준)
@@ -283,31 +299,19 @@ export async function submitCertification(data: {
 
       const isWithinPeriod = isWithinRangeKST(certDate, startDate, endDate);
 
-      console.log('[submitCertification] 📅 Period validation (KST):', {
-        certDate: data.certification_date,
-        period: {
-          termNumber: activePeriod.term_number,
-          startDate: activePeriod.start_date,
-          endDate: activePeriod.end_date,
-        },
-        isWithinPeriod,
-      });
-
       // 시작일 이전
       if (isBeforeKST(certDate, startDate)) {
         throw new Error(
-          `${activePeriod.term_number}기는 ${activePeriod.start_date}부터 시작됩니다.`
+          `${activePeriod.term_number}기는 ${activePeriod.start_date}부터 시작됩니다.`,
         );
       }
 
       // 종료일 이후
       if (isAfterKST(certDate, endDate)) {
         throw new Error(
-          `${activePeriod.term_number}기는 ${activePeriod.end_date}에 종료되었습니다.`
+          `${activePeriod.term_number}기는 ${activePeriod.end_date}에 종료되었습니다.`,
         );
       }
-    } else {
-      console.warn('⚠️ [submitCertification] No active period found - allowing certification without period restriction');
     }
 
     // 3. 인증 제출 (period_id 자동 할당)
@@ -326,7 +330,7 @@ export async function submitCertification(data: {
       .single();
 
     if (error) {
-      console.error('❌ [submitCertification] Error submitting certification:', {
+      console.error('Error submitting certification:', {
         message: error.message,
         details: error.details,
         hint: error.hint,
@@ -335,15 +339,9 @@ export async function submitCertification(data: {
       });
       throw new Error(`인증 제출 실패: ${error.message || '알 수 없는 오류'}`);
     }
-
-    console.log('✅ [submitCertification] Success:', {
-      certificationId: certification?.id,
-      periodId: certification?.period_id,
-      termNumber: activePeriod?.term_number,
-    });
     return certification;
   } catch (err: any) {
-    console.error('❌ [submitCertification] Critical error:', err);
+    console.error('Critical error:', err);
     throw err;
   }
 }
@@ -352,10 +350,10 @@ export async function getCertifications(
   userId: string,
   trackId?: string,
   year?: number,
-  month?: number
+  month?: number,
 ): Promise<Certification[]> {
   const supabase = createClient();
-  
+
   let query = supabase
     .from('certifications')
     .select('*, track:tracks(*)')
@@ -370,7 +368,9 @@ export async function getCertifications(
   if (year && month) {
     const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
     const endDate = `${year}-${String(month).padStart(2, '0')}-31`;
-    query = query.gte('certification_date', startDate).lte('certification_date', endDate);
+    query = query
+      .gte('certification_date', startDate)
+      .lte('certification_date', endDate);
   }
 
   const { data, error } = await query;
@@ -387,47 +387,28 @@ export async function getCalendarCertifications(
   userId: string,
   trackId: string,
   year: number,
-  month: number
+  month: number,
 ): Promise<CalendarCertification[]> {
-  console.log(`[getCalendarCertifications] 🔍 Fetching calendar data:`, {
-    userId,
-    trackId,
-    year,
-    month
-  });
-  
   const certifications = await getCertifications(userId, trackId, year, month);
-  
-  console.log(`[getCalendarCertifications] 📊 Found certifications:`, {
-    count: certifications.length,
-    certifications: certifications.map(c => ({
-      id: c.id,
-      certification_date: c.certification_date,
-      status: c.status,
-      track_id: c.track_id
-    }))
-  });
-  
+
   // Convert to calendar format
   const calendarData: CalendarCertification[] = [];
   const daysInMonth = new Date(year, month, 0).getDate();
 
   for (let day = 1; day <= daysInMonth; day++) {
-    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    const certification = certifications.find(c => c.certification_date === dateStr);
-    
+    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(
+      day,
+    ).padStart(2, '0')}`;
+    const certification = certifications.find(
+      (c) => c.certification_date === dateStr,
+    );
+
     calendarData.push({
       date: dateStr,
       certified: !!certification,
       certification: certification || undefined,
     });
   }
-
-  console.log(`[getCalendarCertifications] ✅ Calendar data generated:`, {
-    totalDays: calendarData.length,
-    certifiedDays: calendarData.filter(d => d.certified).length,
-    certifiedDates: calendarData.filter(d => d.certified).map(d => d.date)
-  });
 
   return calendarData;
 }
@@ -436,12 +417,16 @@ export async function getCalendarCertifications(
 // LEADERBOARD OPERATIONS
 // ============================================
 
-export async function getLeaderboard(trackId?: string, limit: number = 100, isAdmin: boolean = false): Promise<LeaderboardEntry[]> {
+export async function getLeaderboard(
+  trackId?: string,
+  limit: number = 100,
+  isAdmin: boolean = false,
+): Promise<LeaderboardEntry[]> {
   const supabase = createClient();
-  
+
   // 관리자용 함수 사용 여부 결정
   const rpcFunction = isAdmin ? 'get_admin_leaderboard' : 'get_leaderboard';
-  
+
   const { data, error } = await supabase.rpc(rpcFunction, {
     p_track_id: trackId || null,
     p_limit: limit,
@@ -461,7 +446,7 @@ export async function getLeaderboard(trackId?: string, limit: number = 100, isAd
 
 export async function getUserTitles(userId: string): Promise<UserTitle[]> {
   const supabase = createClient();
-  
+
   const { data, error } = await supabase
     .from('user_titles')
     .select('*, title:titles(*), track:tracks(*)')
@@ -478,7 +463,7 @@ export async function getUserTitles(userId: string): Promise<UserTitle[]> {
 
 export async function getAllTitles(): Promise<Title[]> {
   const supabase = createClient();
-  
+
   const { data, error } = await supabase
     .from('titles')
     .select('*')
@@ -497,9 +482,12 @@ export async function getAllTitles(): Promise<Title[]> {
 // STREAK OPERATIONS
 // ============================================
 
-export async function getUserStreak(userId: string, trackId: string): Promise<number> {
+export async function getUserStreak(
+  userId: string,
+  trackId: string,
+): Promise<number> {
   const supabase = createClient();
-  
+
   const { data, error } = await supabase.rpc('get_user_streak', {
     p_user_id: userId,
     p_track_id: trackId,
@@ -513,13 +501,19 @@ export async function getUserStreak(userId: string, trackId: string): Promise<nu
   return data || 0;
 }
 
-export async function getUserTotalCertifications(userId: string, trackId?: string): Promise<number> {
+export async function getUserTotalCertifications(
+  userId: string,
+  trackId?: string,
+): Promise<number> {
   const supabase = createClient();
-  
-  const { data, error } = await supabase.rpc('get_user_total_certifications', {
-    p_user_id: userId,
-    p_track_id: trackId || null,
-  });
+
+  const { data, error } = await supabase.rpc(
+    'get_user_total_certifications',
+    {
+      p_user_id: userId,
+      p_track_id: trackId || null,
+    },
+  );
 
   if (error) {
     console.error('Error fetching total certifications:', error);
@@ -534,15 +528,23 @@ export async function getUserTotalCertifications(userId: string, trackId?: strin
 // ============================================
 
 // Admin functions are now in src/lib/supabase/admin.ts
-export { isUserAdmin, getAdminStats, getAllUsersWithStats, getDropoutCandidates } from './admin';
+export {
+  isUserAdmin,
+  getAdminStats,
+  getAllUsersWithStats,
+  getDropoutCandidates,
+} from './admin';
 
 // ============================================
 // MISSION CONTENT OPERATIONS
 // ============================================
 
-export async function getMissionContent(trackId: string, date: string): Promise<any | null> {
+export async function getMissionContent(
+  trackId: string,
+  date: string,
+): Promise<any | null> {
   const supabase = createClient();
-  
+
   const { data, error } = await supabase
     .from('mission_contents')
     .select('*')
@@ -566,7 +568,7 @@ export async function createCertification(certData: {
   status?: 'pending' | 'approved' | 'rejected' | 'completed';
 }): Promise<Certification | null> {
   const supabase = createClient();
-  
+
   // First check if certification already exists for this date and track
   const { data: existing } = await supabase
     .from('certifications')
@@ -621,10 +623,10 @@ export async function createCertification(certData: {
 export async function getCertificationByDateAndTrack(
   userId: string,
   trackId: string,
-  date: string
+  date: string,
 ): Promise<Certification | null> {
   const supabase = createClient();
-  
+
   const { data, error } = await supabase
     .from('certifications')
     .select('*')
@@ -643,10 +645,10 @@ export async function getCertificationByDateAndTrack(
 
 export async function getLastCertificationDate(
   userId: string,
-  trackId: string
+  trackId: string,
 ): Promise<Date | null> {
   const supabase = createClient();
-  
+
   const { data, error } = await supabase
     .from('certifications')
     .select('certification_date')
@@ -670,5 +672,3 @@ export async function getLastCertificationDate(
 
 // Admin track management functions are now in src/lib/supabase/admin.ts
 export { assignUserToTracks, getUsersWithTracks } from './admin';
-
-

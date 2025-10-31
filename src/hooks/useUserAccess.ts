@@ -20,98 +20,39 @@ export function useUserAccess(): UserAccessResult {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    let mounted = true;
-    let globalTimeout: NodeJS.Timeout;
-    
     const checkUserAccess = async () => {
-      console.log('[useUserAccess] 🚀 Starting user access check...');
       setIsLoading(true);
-      
-      // 전체 프로세스 타임아웃 (5초로 단축)
-      globalTimeout = setTimeout(() => {
-        if (mounted) {
-          console.warn('[useUserAccess] ⚠️ 전역 타임아웃 - 강제 종료');
-          setHasAssignedTracks(false);
-          setIsLoading(false);
-        }
-      }, 5000);
-      
+
       try {
-        // 사용자 정보 가져오기
-        console.log('[useUserAccess] 📡 Fetching user...');
         const user = await getUser();
-        
-        if (!mounted) {
-          clearTimeout(globalTimeout);
-          return;
-        }
-        
         const currentUserId = user?.id || null;
         setUserId(currentUserId);
-        
-        console.log('[useUserAccess] ✅ User ID:', currentUserId);
-        
+
         if (currentUserId) {
-          try {
-            console.log('[useUserAccess] 📡 Fetching user tracks...');
-            const userTracks = await getUserTracks(currentUserId);
-            
-            if (!mounted) {
-              clearTimeout(globalTimeout);
-              return;
-            }
-            
-            console.log('[useUserAccess] ✅ User tracks count:', userTracks.length);
-            const hasTracks = userTracks.length > 0;
-            setHasAssignedTracks(hasTracks);
-            
-            // 트랙이 없고 현재 페이지가 contact-admin이 아닌 경우 리다이렉트
-            if (!hasTracks && typeof window !== 'undefined' && window.location.pathname !== '/contact-admin') {
-              console.log('[useUserAccess] 🔄 Redirecting to contact-admin page');
-              window.location.href = '/contact-admin';
-            }
-          } catch (trackError) {
-            console.error('[useUserAccess] ❌ Error fetching tracks:', trackError);
-            
-            if (!mounted) {
-              clearTimeout(globalTimeout);
-              return;
-            }
-            
-            // RLS 오류 등이 발생해도 계속 진행 - 빈 배열로 처리
-            setHasAssignedTracks(false);
+          const userTracks = await getUserTracks(currentUserId);
+          const hasTracks = userTracks.length > 0;
+          setHasAssignedTracks(hasTracks);
+
+          if (
+            !hasTracks &&
+            typeof window !== 'undefined' &&
+            window.location.pathname !== '/contact-admin'
+          ) {
+            window.location.href = '/contact-admin';
           }
         } else {
-          console.log('[useUserAccess] ℹ️ No user logged in');
           setHasAssignedTracks(false);
         }
       } catch (error) {
-        console.error('[useUserAccess] ❌ Critical error:', error);
-        
-        if (!mounted) {
-          clearTimeout(globalTimeout);
-          return;
-        }
-        
+        console.error('Error checking user access:', error);
         setUserId(null);
         setHasAssignedTracks(false);
       } finally {
-        if (mounted) {
-          clearTimeout(globalTimeout);
-          console.log('[useUserAccess] ✅ Loading complete');
-          setIsLoading(false);
-        }
+        setIsLoading(false);
       }
     };
 
     checkUserAccess();
-    
-    return () => {
-      mounted = false;
-      if (globalTimeout) {
-        clearTimeout(globalTimeout);
-      }
-    };
   }, []);
 
   return {
@@ -120,4 +61,3 @@ export function useUserAccess(): UserAccessResult {
     isLoading,
   };
 }
-
