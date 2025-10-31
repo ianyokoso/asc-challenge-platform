@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
   });
 
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // 쿼리 빌드
     let query = supabase

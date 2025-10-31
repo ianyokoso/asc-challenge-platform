@@ -13,7 +13,7 @@ export async function GET() {
   console.log('[API /certifications/dashboard] 🔍 Fetching dashboard stats');
 
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { data, error } = await supabase
       .from('certifications_by_track_v')
