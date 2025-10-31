@@ -252,6 +252,7 @@ export async function submitCertification(data: {
   user_track_id: string;
   certification_url: string;
   certification_date: string;
+  notes?: string;
 }): Promise<Certification | null> {
   const supabase = createClient();
   
@@ -311,17 +312,28 @@ export async function submitCertification(data: {
     }
 
     // 3. 인증 제출 (period_id 자동 할당)
+    const certificationData: any = {
+      user_id: data.user_id,
+      track_id: data.track_id,
+      user_track_id: data.user_track_id,
+      certification_date: data.certification_date,
+      status: 'submitted',
+      period_id: activePeriod?.id || null, // 활성 기수 ID 자동 할당
+    };
+    
+    // certification_url이 제공된 경우에만 추가 (빈 문자열이 아닌 경우)
+    if (data.certification_url && data.certification_url.trim()) {
+      certificationData.certification_url = data.certification_url;
+    }
+    
+    // notes가 제공된 경우 추가
+    if (data.notes) {
+      certificationData.notes = data.notes;
+    }
+    
     const { data: certification, error } = await supabase
       .from('certifications')
-      .upsert({
-        user_id: data.user_id,
-        track_id: data.track_id,
-        user_track_id: data.user_track_id,
-        certification_url: data.certification_url,
-        certification_date: data.certification_date,
-        status: 'submitted',
-        period_id: activePeriod?.id || null, // 활성 기수 ID 자동 할당
-      })
+      .upsert(certificationData)
       .select()
       .single();
 

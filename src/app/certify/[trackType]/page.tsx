@@ -125,17 +125,28 @@ import {
         return;
       }
 
-      if (!certificationUrl.trim()) {
-        setError('인증 URL을 입력해주세요.');
-        return;
-      }
+      // 빌더, 세일즈 트랙: 과제인증란(notes) 필수
+      // 숏폼, 롱폼 트랙: URL 필수
+      const isTaskBasedTrack = trackType === 'builder' || trackType === 'sales';
+      
+      if (isTaskBasedTrack) {
+        if (!notes.trim()) {
+          setError('과제인증란을 입력해주세요.');
+          return;
+        }
+      } else {
+        if (!certificationUrl.trim()) {
+          setError('인증 URL을 입력해주세요.');
+          return;
+        }
 
-      // Validate URL format
-      try {
-        new URL(certificationUrl);
-      } catch {
-        setError('올바른 URL 형식이 아닙니다. (예: https://example.com)');
-        return;
+        // Validate URL format
+        try {
+          new URL(certificationUrl);
+        } catch {
+          setError('올바른 URL 형식이 아닙니다. (예: https://example.com)');
+          return;
+        }
       }
 
     // 당일 날짜 검증 (부정행위 방지)
@@ -179,8 +190,9 @@ import {
           user_id: userId,
           track_id: currentTrack.track_id,
           user_track_id: currentTrack.id,
-          certification_url: certificationUrl.trim(),
+          certification_url: isTaskBasedTrack ? '' : certificationUrl.trim(),
           certification_date: certificationDate,
+          notes: notes.trim() || undefined,
         });
 
         if (result) {
@@ -203,7 +215,12 @@ import {
     // Handle edit mode
     const handleEditMode = () => {
       if (existingCertification) {
-        setCertificationUrl(existingCertification.certification_url);
+        if (existingCertification.certification_url) {
+          setCertificationUrl(existingCertification.certification_url);
+        }
+        if (existingCertification.notes) {
+          setNotes(existingCertification.notes);
+        }
         setIsEditMode(true);
       }
       setShowDuplicateDialog(false);
@@ -269,6 +286,9 @@ import {
       );
     }
 
+    // 트랙 타입별 폼 설정
+    const isTaskBasedTrack = trackType === 'builder' || trackType === 'sales';
+
     return (
       <>
         <Navbar />
@@ -289,15 +309,26 @@ import {
             {existingCertification && (
               <div className="py-4">
                 <Card className="p-4 bg-gray-50">
-                  <p className="text-body-sm text-gray-600 mb-2">기존 인증 URL</p>
-                  <a 
-                    href={existingCertification.certification_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-body text-primary hover:underline break-all"
-                  >
-                    {existingCertification.certification_url}
-                  </a>
+                  {existingCertification.certification_url ? (
+                    <>
+                      <p className="text-body-sm text-gray-600 mb-2">기존 인증 URL</p>
+                      <a 
+                        href={existingCertification.certification_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-body text-primary hover:underline break-all"
+                      >
+                        {existingCertification.certification_url}
+                      </a>
+                    </>
+                  ) : existingCertification.notes ? (
+                    <>
+                      <p className="text-body-sm text-gray-600 mb-2">기존 과제인증</p>
+                      <p className="text-body text-gray-900 whitespace-pre-wrap">
+                        {existingCertification.notes}
+                      </p>
+                    </>
+                  ) : null}
                   <p className="text-body-xs text-gray-500 mt-3">
                     제출 시각: {format(parseISO(existingCertification.created_at), 'HH:mm', { locale: ko })}
                   </p>
@@ -413,38 +444,46 @@ import {
                   </p>
                 </div>
 
-                {/* URL */}
-                <div>
-                  <Label htmlFor="url" className="text-body font-medium text-gray-900">
-                    인증 URL *
-                  </Label>
-                  <Input
-                    id="url"
-                    type="url"
-                    placeholder="https://example.com/your-work"
-                    value={certificationUrl}
-                    onChange={(e) => setCertificationUrl(e.target.value)}
-                    required
-                    className="mt-2"
-                  />
-                  <p className="text-body-sm text-gray-500 mt-1">
-                    챌린지 결과물의 URL을 입력하세요 (예: YouTube, Medium, GitHub 등)
-                  </p>
-                </div>
+                {/* URL - 숏폼/롱폼 트랙만 표시 */}
+                {!isTaskBasedTrack && (
+                  <div>
+                    <Label htmlFor="url" className="text-body font-medium text-gray-900">
+                      인증 URL *
+                    </Label>
+                    <Input
+                      id="url"
+                      type="url"
+                      placeholder="https://example.com/your-work"
+                      value={certificationUrl}
+                      onChange={(e) => setCertificationUrl(e.target.value)}
+                      required
+                      className="mt-2"
+                    />
+                    <p className="text-body-sm text-gray-500 mt-1">
+                      챌린지 결과물의 URL을 입력하세요 (예: YouTube, Medium, GitHub 등)
+                    </p>
+                  </div>
+                )}
 
-                {/* Notes (Optional) */}
+                {/* 과제인증란 / 메모 */}
                 <div>
                   <Label htmlFor="notes" className="text-body font-medium text-gray-900">
-                    메모 (선택)
+                    {isTaskBasedTrack ? '과제인증란 *' : '메모 (선택)'}
                   </Label>
                   <Textarea
                     id="notes"
-                    placeholder="추가적인 메모를 남겨주세요."
+                    placeholder={isTaskBasedTrack ? '과제 인증 내용을 작성해주세요.' : '추가적인 메모를 남겨주세요.'}
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    rows={3}
+                    required={isTaskBasedTrack}
+                    rows={isTaskBasedTrack ? 6 : 3}
                     className="mt-2"
                   />
+                  {isTaskBasedTrack && (
+                    <p className="text-body-sm text-gray-500 mt-1">
+                      완료한 과제의 내용을 자세히 작성해주세요.
+                    </p>
+                  )}
                 </div>
 
                 {/* Error Message */}
@@ -520,18 +559,34 @@ import {
                 💡 챌린지 인증 팁
               </h3>
               <ul className="list-disc list-inside space-y-2 text-body-sm text-gray-700">
-                <li>
-                  인증 URL은 공개적으로 접근 가능한 링크여야 합니다.
-                </li>
-                {trackType === 'short-form' && (
-                  <li>
-                    평일(월~금) 매일 인증하여 연속 기록을 쌓으세요!
-                  </li>
-                )}
-                {trackType !== 'short-form' && (
-                  <li>
-                    마감일 1주일 전부터 미리 인증할 수 있습니다.
-                  </li>
+                {isTaskBasedTrack ? (
+                  <>
+                    <li>
+                      과제인증란에 완료한 과제의 내용을 상세히 작성해주세요.
+                    </li>
+                    <li>
+                      매주 정해진 마감일까지 인증을 완료해야 합니다.
+                    </li>
+                    <li>
+                      과제 내용은 구체적으로 작성할수록 좋습니다.
+                    </li>
+                  </>
+                ) : (
+                  <>
+                    <li>
+                      인증 URL은 공개적으로 접근 가능한 링크여야 합니다.
+                    </li>
+                    {trackType === 'short-form' && (
+                      <li>
+                        평일(월~금) 매일 인증하여 연속 기록을 쌓으세요!
+                      </li>
+                    )}
+                    {trackType !== 'short-form' && (
+                      <li>
+                        마감일 1주일 전부터 미리 인증할 수 있습니다.
+                      </li>
+                    )}
+                  </>
                 )}
                 <li>
                   궁금한 점은 Discord 커뮤니티에 문의해주세요.
