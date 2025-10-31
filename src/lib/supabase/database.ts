@@ -261,7 +261,11 @@ export async function submitCertification(data: {
     track_id: data.track_id,
     user_track_id: data.user_track_id,
     certification_date: data.certification_date,
-    url_length: data.certification_url.length,
+    certification_url: data.certification_url,
+    url_type: typeof data.certification_url,
+    url_length: data.certification_url?.length || 0,
+    notes_provided: !!data.notes,
+    notes_length: data.notes?.length || 0,
   });
   
   try {
@@ -312,11 +316,23 @@ export async function submitCertification(data: {
     }
 
     // 3. 인증 제출 (period_id 자동 할당)
+    // certification_url 명시적 처리: null/undefined를 빈 문자열로 변환
+    const finalCertificationUrl = data.certification_url === null || data.certification_url === undefined 
+      ? '' 
+      : String(data.certification_url);
+    
+    console.log('[submitCertification] 📝 Final certification_url:', {
+      original: data.certification_url,
+      final: finalCertificationUrl,
+      type: typeof finalCertificationUrl,
+      length: finalCertificationUrl.length,
+    });
+    
     const certificationData: any = {
       user_id: data.user_id,
       track_id: data.track_id,
       user_track_id: data.user_track_id,
-      certification_url: data.certification_url || '', // 빈 문자열이라도 항상 포함 (DB NOT NULL 제약 대응)
+      certification_url: finalCertificationUrl, // 명시적으로 빈 문자열 보장
       certification_date: data.certification_date,
       status: 'submitted',
       period_id: activePeriod?.id || null, // 활성 기수 ID 자동 할당
@@ -326,6 +342,8 @@ export async function submitCertification(data: {
     if (data.notes) {
       certificationData.notes = data.notes;
     }
+    
+    console.log('[submitCertification] 📦 Upserting data:', JSON.stringify(certificationData, null, 2));
     
     const { data: certification, error } = await supabase
       .from('certifications')
