@@ -30,7 +30,9 @@ export const queryKeys = {
   certifications: {
     all: ['certifications'] as const,
     calendar: (periodId: string, userId?: string) => 
-      ['certifications', 'calendar', periodId, userId].filter(Boolean) as const,
+      userId 
+        ? (['certifications', 'calendar', periodId, userId] as const)
+        : (['certifications', 'calendar', periodId] as const),
     dashboard: () => ['certifications', 'dashboard'] as const,
     tracking: (periodId: string) => ['certifications', 'tracking', periodId] as const,
     byUser: (userId: string) => ['certifications', 'user', userId] as const,
