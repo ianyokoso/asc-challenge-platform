@@ -125,7 +125,7 @@ import {
         return;
       }
 
-      if (!certificationUrl.trim()) {
+      if (trackType !== 'builder' && !certificationUrl.trim()) {
         setError('인증 URL을 입력해주세요.');
         return;
       }
@@ -179,8 +179,12 @@ import {
           user_id: userId,
           track_id: currentTrack.track_id,
           user_track_id: currentTrack.id,
-          certification_url: certificationUrl.trim(),
+          certification_url:
+            trackType === 'builder'
+              ? notes.trim()
+              : certificationUrl.trim(),
           certification_date: certificationDate,
+          notes: trackType === 'builder' ? undefined : notes.trim(),
         });
 
         if (result) {
@@ -414,36 +418,50 @@ import {
                 </div>
 
                 {/* URL */}
-                <div>
-                  <Label htmlFor="url" className="text-body font-medium text-gray-900">
-                    인증 URL *
-                  </Label>
-                  <Input
-                    id="url"
-                    type="url"
-                    placeholder="https://example.com/your-work"
-                    value={certificationUrl}
-                    onChange={(e) => setCertificationUrl(e.target.value)}
-                    required
-                    className="mt-2"
-                  />
-                  <p className="text-body-sm text-gray-500 mt-1">
-                    챌린지 결과물의 URL을 입력하세요 (예: YouTube, Medium, GitHub 등)
-                  </p>
-                </div>
+                {trackType !== 'builder' && (
+                  <div>
+                    <Label
+                      htmlFor="url"
+                      className="text-body font-medium text-gray-900"
+                    >
+                      인증 URL *
+                    </Label>
+                    <Input
+                      id="url"
+                      type="url"
+                      placeholder="https://example.com/your-work"
+                      value={certificationUrl}
+                      onChange={(e) => setCertificationUrl(e.target.value)}
+                      required
+                      className="mt-2"
+                    />
+                    <p className="text-body-sm text-gray-500 mt-1">
+                      챌린지 결과물의 URL을 입력하세요 (예: YouTube, Medium,
+                      GitHub 등)
+                    </p>
+                  </div>
+                )}
 
                 {/* Notes (Optional) */}
                 <div>
-                  <Label htmlFor="notes" className="text-body font-medium text-gray-900">
-                    메모 (선택)
+                  <Label
+                    htmlFor="notes"
+                    className="text-body font-medium text-gray-900"
+                  >
+                    {trackType === 'builder' ? '과제 인증' : '메모 (선택)'}
                   </Label>
                   <Textarea
                     id="notes"
-                    placeholder="추가적인 메모를 남겨주세요."
+                    placeholder={
+                      trackType === 'builder'
+                        ? '과제 인증 내용을 입력해주세요.'
+                        : '추가적인 메모를 남겨주세요.'
+                    }
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    rows={3}
+                    rows={trackType === 'builder' ? 10 : 3}
                     className="mt-2"
+                    required={trackType === 'builder'}
                   />
                 </div>
 

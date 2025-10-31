@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, Fragment } from 'react';
 import { format, parse, getDay, startOfMonth, isSameDay } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { 
@@ -17,7 +17,18 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import type { TrackCertificationSummary } from '@/lib/supabase/certification-tracking';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import type {
+  TrackCertificationSummary,
+  ParticipantCertification,
+} from '@/lib/supabase/certification-tracking';
 
 interface CertificationTrackingTableProps {
   data: TrackCertificationSummary;
@@ -43,6 +54,21 @@ export function CertificationTrackingTable({
 }: CertificationTrackingTableProps) {
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [selectedCertification, setSelectedCertification] =
+    useState<ParticipantCertification | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const handleCellClick = (certification: ParticipantCertification) => {
+    if (certification.status === 'certified' || certification.status === 'pending') {
+      setSelectedCertification(certification);
+      setIsModalOpen(true);
+    }
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setSelectedCertification(null);
+  };
 
   // 참여자별 미이행 횟수 계산
   const participantsWithStats = useMemo(() => {
@@ -182,8 +208,9 @@ export function CertificationTrackingTable({
   }
 
   return (
-    <div className="w-full">
-      {/* 트랙 정보 헤더 */}
+    <Fragment>
+      <div className="w-full">
+        {/* 트랙 정보 헤더 */}
       <div className="mb-4 flex items-center justify-between">
         <div>
           <h3 className="text-h4 font-heading text-gray-900">
@@ -401,44 +428,36 @@ export function CertificationTrackingTable({
                         `}
                         role="cell"
                         aria-label={`${dateLabel} ${display.tooltip}`}
+                        onClick={() => handleCellClick(cert)}
                       >
-                        {display.clickable && cert.url ? (
-                          <a
-                            href={cert.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={`
-                              inline-flex items-center justify-center w-full h-full py-1 lg:py-2
-                              ${display.color} ${display.bgColor}
-                              rounded transition-all cursor-pointer
-                              group relative
-                            `}
-                            aria-label={`${dateLabel} ${display.tooltip}, 링크 새 창에서 열기`}
-                            title={`${display.tooltip} (클릭하여 인증 링크 보기)`}
+                        <div
+                          className={`
+                            inline-flex items-center justify-center w-full h-full py-1 lg:py-2
+                            ${display.color} ${display.bgColor}
+                            rounded transition-all
+                            ${display.clickable ? 'cursor-pointer' : ''}
+                            group relative
+                          `}
+                          title={
+                            display.clickable
+                              ? `${display.tooltip} (클릭하여 상세 보기)`
+                              : display.tooltip
+                          }
+                        >
+                          <span
+                            className="scale-75 lg:scale-100"
+                            aria-hidden="true"
                           >
-                            <span className="scale-75 lg:scale-100" aria-hidden="true">
-                              {display.icon}
-                            </span>
-                            <span className="sr-only">{display.tooltip}</span>
-                            <ExternalLink className="h-2 w-2 lg:h-3 lg:w-3 ml-0.5 lg:ml-1 opacity-0 group-hover:opacity-100 transition-opacity" aria-hidden="true" />
-                          </a>
-                        ) : (
-                          <div
-                            className={`
-                              inline-flex items-center justify-center w-full py-1 lg:py-2
-                              ${display.color} ${display.bgColor}
-                              rounded
-                            `}
-                            role="img"
-                            aria-label={display.tooltip}
-                            title={display.tooltip}
-                          >
-                            <span className="scale-75 lg:scale-100" aria-hidden="true">
-                              {display.icon}
-                            </span>
-                            <span className="sr-only">{display.tooltip}</span>
-                          </div>
-                        )}
+                            {display.icon}
+                          </span>
+                          <span className="sr-only">{display.tooltip}</span>
+                          {display.clickable && (
+                            <ExternalLink
+                              className="h-2 w-2 lg:h-3 lg:w-3 ml-0.5 lg:ml-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                              aria-hidden="true"
+                            />
+                          )}
+                        </div>
                       </td>
                     );
                   })}
@@ -494,6 +513,58 @@ export function CertificationTrackingTable({
         </div>
       </div>
     </div>
+      {selectedCertification && (
+        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>인증 상세 정보</DialogTitle>
+              <DialogDescription>
+                {selectedCertification.participant.discordUsername}님의{' '}
+                {format(
+                  parse(selectedCertification.date, 'yyyy-MM-dd', new Date()),
+                  'yyyy년 M월 d일',
+                  { locale: ko },
+                )}{' '}
+                인증 내역입니다.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-4">
+              {data.trackType === 'builder' ? (
+                <div>
+                  <h4 className="font-semibold">과제 인증</h4>
+                  <p className="mt-2 p-4 bg-gray-100 rounded-md whitespace-pre-wrap">
+                    {selectedCertification.url}
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <h4 className="font-semibold">인증 URL</h4>
+                  <a
+                    href={selectedCertification.url || ''}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-2 text-blue-600 hover:underline break-all"
+                  >
+                    {selectedCertification.url}
+                  </a>
+                </div>
+              )}
+              {selectedCertification.notes && (
+                <div>
+                  <h4 className="font-semibold">메모</h4>
+                  <p className="mt-2 p-4 bg-gray-100 rounded-md whitespace-pre-wrap">
+                    {selectedCertification.notes}
+                  </p>
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button onClick={closeModal}>닫기</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+    </Fragment>
   );
 }
 

@@ -276,6 +276,7 @@ export async function submitCertification(data: {
   user_track_id: string;
   certification_url: string;
   certification_date: string;
+  notes?: string;
 }): Promise<Certification | null> {
   const supabase = createClient();
 
@@ -325,6 +326,7 @@ export async function submitCertification(data: {
         certification_date: data.certification_date,
         status: 'submitted',
         period_id: activePeriod?.id || null, // 활성 기수 ID 자동 할당
+        notes: data.notes,
       })
       .select()
       .single();
