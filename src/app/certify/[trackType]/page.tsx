@@ -251,13 +251,14 @@ import {
         
         const result = await certifyAction(submissionData);
 
-        if (result.ok) {
-          console.log('[CertifyPage] ✅ Certification submitted successfully');
-          // Success! Navigate to success page
-          router.push('/certify/success');
-        } else {
+        if (!result.ok) {
+          // Error case - result has 'message' property
           console.error('[CertifyPage] ❌ Certification submission failed:', result);
           setError(result.message || '인증 제출에 실패했습니다. 다시 시도해주세요.');
+        } else {
+          // Success case
+          console.log('[CertifyPage] ✅ Certification submitted successfully');
+          router.push('/certify/success');
         }
       } catch (err: any) {
         console.error('[CertifyPage] ❌ Certification submission error:', err);
