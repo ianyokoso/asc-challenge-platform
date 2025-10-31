@@ -88,11 +88,40 @@ import {
       }
     }, [userId, currentTrack?.track_id, trackType]);
 
-    // Set certification date to today only (anti-fraud measure)
-    useEffect(() => {
-      const today = format(new Date(), 'yyyy-MM-dd');
-      setCertificationDate(today);
-    }, []);
+  // Set certification date based on track type
+  useEffect(() => {
+    const today = new Date();
+    let targetDate = today;
+    
+    // 빌더 트랙: 다음 일요일로 계산
+    if (trackType === 'builder') {
+      const dayOfWeek = today.getDay(); // 0=일, 1=월, ..., 6=토
+      const daysUntilSunday = dayOfWeek === 0 ? 0 : 7 - dayOfWeek;
+      targetDate = new Date(today);
+      targetDate.setDate(today.getDate() + daysUntilSunday);
+    }
+    
+    // 롱폼 트랙: 다음 일요일로 계산
+    else if (trackType === 'long-form') {
+      const dayOfWeek = today.getDay(); // 0=일, 1=월, ..., 6=토
+      const daysUntilSunday = dayOfWeek === 0 ? 0 : 7 - dayOfWeek;
+      targetDate = new Date(today);
+      targetDate.setDate(today.getDate() + daysUntilSunday);
+    }
+    
+    // 세일즈 트랙: 다음 화요일로 계산
+    else if (trackType === 'sales') {
+      const dayOfWeek = today.getDay(); // 0=일, 1=월, ..., 6=토
+      let daysUntilTuesday = (2 - dayOfWeek + 7) % 7;
+      if (daysUntilTuesday === 0 && dayOfWeek !== 2) {
+        daysUntilTuesday = 7;
+      }
+      targetDate = new Date(today);
+      targetDate.setDate(today.getDate() + daysUntilTuesday);
+    }
+    
+    setCertificationDate(format(targetDate, 'yyyy-MM-dd'));
+  }, [trackType]);
 
 
   // Validate today's date against active period
@@ -127,8 +156,6 @@ import {
 
       // 빌더, 세일즈 트랙: 과제인증란(notes) 필수
       // 숏폼, 롱폼 트랙: URL 필수
-      const isTaskBasedTrack = trackType === 'builder' || trackType === 'sales';
-      
       if (isTaskBasedTrack) {
         if (!notes.trim()) {
           setError('과제인증란을 입력해주세요.');
@@ -149,14 +176,24 @@ import {
         }
       }
 
-    // 당일 날짜 검증 (부정행위 방지)
+    // 날짜 검증 (부정행위 방지)
     const today = new Date();
     const selectedDate = new Date(certificationDate);
     
-    // 날짜가 당일이 아닌 경우 차단
-    if (today.toDateString() !== selectedDate.toDateString()) {
+    // 숏폼 트랙: 당일만 가능
+    if (trackType === 'short-form' && today.toDateString() !== selectedDate.toDateString()) {
       setError('부정행위 방지를 위해 당일 날짜로만 인증이 가능합니다.');
       return;
+    }
+    
+    // 빌더/롱폼/세일즈 트랙: 미래 날짜는 불가 (마감일은 미래일 수 있음)
+    if ((trackType === 'builder' || trackType === 'long-form' || trackType === 'sales') && selectedDate < today) {
+      const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const selectedMidnight = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+      if (selectedMidnight < todayMidnight) {
+        setError('과거 날짜로는 인증할 수 없습니다.');
+        return;
+      }
     }
     
     // 기간 및 트랙 규칙 검증
@@ -288,6 +325,7 @@ import {
 
     // 트랙 타입별 폼 설정
     const isTaskBasedTrack = trackType === 'builder' || trackType === 'sales';
+    const isWeeklyTrack = trackType === 'builder' || trackType === 'long-form' || trackType === 'sales';
 
     return (
       <>
@@ -423,7 +461,7 @@ import {
                 )}
               </div>
               <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Date - 당일로 고정 */}
+                {/* Date */}
                 <div>
                   <Label className="text-body font-medium text-gray-900">
                     인증 날짜
@@ -432,16 +470,26 @@ import {
                     <div className="flex items-center gap-2">
                       <CalendarIcon className="h-5 w-5 text-gray-600" />
                       <span className="text-body font-medium text-gray-900">
-                        {format(new Date(), 'yyyy년 MM월 dd일 (EEE)', { locale: ko })}
+                        {certificationDate && format(parseISO(certificationDate), 'yyyy년 MM월 dd일 (EEE)', { locale: ko })}
                       </span>
-                      <span className="text-body-sm text-gray-500">
-                        (당일만 인증 가능)
-                      </span>
+                      {isWeeklyTrack && (
+                        <span className="text-body-sm text-primary">
+                          (마감일 기준)
+                        </span>
+                      )}
                     </div>
                   </div>
-                  <p className="text-body-sm text-gray-500 mt-1">
-                    부정행위 방지를 위해 당일 날짜로만 인증이 가능합니다.
-                  </p>
+                  {isWeeklyTrack ? (
+                    <p className="text-body-sm text-gray-500 mt-1">
+                      {trackType === 'builder' || trackType === 'long-form' 
+                        ? '오늘 인증하면 다음 일요일(주간 마감일)로 기록됩니다.'
+                        : '오늘 인증하면 다음 화요일(주간 마감일)로 기록됩니다.'}
+                    </p>
+                  ) : (
+                    <p className="text-body-sm text-gray-500 mt-1">
+                      부정행위 방지를 위해 당일 날짜로만 인증이 가능합니다.
+                    </p>
+                  )}
                 </div>
 
                 {/* URL - 숏폼/롱폼 트랙만 표시 */}
