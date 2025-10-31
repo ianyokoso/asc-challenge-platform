@@ -21,7 +21,8 @@
   import { getUser } from '@/lib/supabase/client';
   import { useUserTracks } from '@/hooks/useUserTracks';
   import { useActivePeriod, isWithinActivePeriod } from '@/hooks/useActivePeriod';
-  import { submitCertification, getCertificationByDateAndTrack, getLastCertificationDate } from '@/lib/supabase/database';
+  import { getCertificationByDateAndTrack, getLastCertificationDate } from '@/lib/supabase/database';
+  import { certifyAction } from '@/app/actions/certify';
   import { format, parseISO } from 'date-fns';
   import { ko } from 'date-fns/locale';
   import { getNow } from '@/lib/utils/demo-time';
@@ -230,32 +231,33 @@ import {
         
         // 데이터 명시적 준비
         const submissionData = {
-          user_id: userId,
-          track_id: currentTrack.track_id,
-          user_track_id: currentTrack.id,
-          certification_url: isTaskBasedTrack ? '' : certificationUrl.trim(), // 빌더/세일즈는 빈 문자열
-          certification_date: certificationDate,
-          notes: notes.trim() || undefined, // 빌더/세일즈는 notes 필수
+          userId: userId,
+          trackId: currentTrack.track_id,
+          userTrackId: currentTrack.id,
+          periodId: activePeriod?.id || '',
+          certificationDate: certificationDate,
+          certificationUrl: isTaskBasedTrack ? null : certificationUrl.trim(), // 빌더/세일즈는 null
+          notes: notes.trim() || null, // 빌더/세일즈는 notes 필수
+          idempotencyKey: `${userId}-${currentTrack.track_id}-${certificationDate}-${Date.now()}`,
         };
         
         console.log('[CertifyPage] 📤 Submission data:', {
           isTaskBasedTrack,
-          certification_url: submissionData.certification_url,
-          certification_url_type: typeof submissionData.certification_url,
-          certification_url_length: submissionData.certification_url?.length || 0,
-          notes_provided: !!submissionData.notes,
-          notes_length: submissionData.notes?.length || 0,
+          certificationUrl: submissionData.certificationUrl,
+          certificationUrlType: typeof submissionData.certificationUrl,
+          notesProvided: !!submissionData.notes,
+          notesLength: submissionData.notes?.length || 0,
         });
         
-        const result = await submitCertification(submissionData);
+        const result = await certifyAction(submissionData);
 
-        if (result) {
-          console.log('[CertifyPage] ✅ Certification submitted successfully:', result.id);
+        if (result.ok) {
+          console.log('[CertifyPage] ✅ Certification submitted successfully');
           // Success! Navigate to success page
           router.push('/certify/success');
         } else {
-          console.error('[CertifyPage] ❌ Certification submission returned null');
-          setError('인증 제출에 실패했습니다. 다시 시도해주세요.');
+          console.error('[CertifyPage] ❌ Certification submission failed:', result);
+          setError(result.message || '인증 제출에 실패했습니다. 다시 시도해주세요.');
         }
       } catch (err: any) {
         console.error('[CertifyPage] ❌ Certification submission error:', err);

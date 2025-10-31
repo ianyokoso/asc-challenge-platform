@@ -12,6 +12,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { createClient } from '@/lib/supabase/client';
 import { createContext, useContext, useEffect, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
+import { RealtimeCertificationsBridge } from '@/components/RealtimeCertificationsBridge';
 
 function makeQueryClient() {
   return new QueryClient({
@@ -123,6 +124,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     >
       <QueryClientProvider client={queryClient}>
         <SupabaseAuthProvider>
+          <RealtimeCertificationsBridge />
           {children}
           <Toaster />
         </SupabaseAuthProvider>
