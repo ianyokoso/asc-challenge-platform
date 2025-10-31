@@ -18,6 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import type { TrackCertificationSummary } from '@/lib/supabase/certification-tracking';
+import { CertificationDetailDialog } from '@/components/admin/CertificationDetailDialog';
 
 interface CertificationTrackingTableProps {
   data: TrackCertificationSummary;
@@ -43,6 +44,16 @@ export function CertificationTrackingTable({
 }: CertificationTrackingTableProps) {
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedCertification, setSelectedCertification] = useState<{
+    status: 'certified' | 'pending' | 'missing' | 'not-required';
+    url: string | null;
+    submittedAt: string | null;
+    date: string;
+    userName: string;
+    userAvatar: string | null;
+    trackName: string;
+  } | null>(null);
 
   // 참여자별 미이행 횟수 계산
   const participantsWithStats = useMemo(() => {
@@ -91,6 +102,25 @@ export function CertificationTrackingTable({
       setSortField(field);
       setSortDirection('asc');
     }
+  };
+
+  // 인증 상세 보기
+  const handleCertificationClick = (
+    cert: { status: string; url: string | null; submittedAt: string | null },
+    date: string,
+    userName: string,
+    userAvatar: string | null
+  ) => {
+    setSelectedCertification({
+      status: cert.status as 'certified' | 'pending' | 'missing' | 'not-required',
+      url: cert.url,
+      submittedAt: cert.submittedAt,
+      date,
+      userName,
+      userAvatar,
+      trackName: data.trackName,
+    });
+    setDialogOpen(true);
   };
 
   // 인증 상태에 따른 아이콘 및 색상
@@ -402,26 +432,30 @@ export function CertificationTrackingTable({
                         role="cell"
                         aria-label={`${dateLabel} ${display.tooltip}`}
                       >
-                        {display.clickable && cert.url ? (
-                          <a
-                            href={cert.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                        {display.clickable ? (
+                          <button
+                            onClick={() => handleCertificationClick(
+                              cert,
+                              date,
+                              participant.discordUsername,
+                              participant.discordAvatarUrl
+                            )}
                             className={`
                               inline-flex items-center justify-center w-full h-full py-1 lg:py-2
                               ${display.color} ${display.bgColor}
                               rounded transition-all cursor-pointer
                               group relative
+                              border-0
                             `}
-                            aria-label={`${dateLabel} ${display.tooltip}, 링크 새 창에서 열기`}
-                            title={`${display.tooltip} (클릭하여 인증 링크 보기)`}
+                            aria-label={`${dateLabel} ${display.tooltip}, 상세 정보 보기`}
+                            title={`${display.tooltip} (클릭하여 상세 정보 보기)`}
                           >
                             <span className="scale-75 lg:scale-100" aria-hidden="true">
                               {display.icon}
                             </span>
                             <span className="sr-only">{display.tooltip}</span>
                             <ExternalLink className="h-2 w-2 lg:h-3 lg:w-3 ml-0.5 lg:ml-1 opacity-0 group-hover:opacity-100 transition-opacity" aria-hidden="true" />
-                          </a>
+                          </button>
                         ) : (
                           <div
                             className={`
@@ -461,11 +495,11 @@ export function CertificationTrackingTable({
         <div className="flex flex-wrap gap-3 lg:gap-4 text-xs lg:text-sm text-gray-600">
           <div className="flex items-center gap-1.5 lg:gap-2">
             <CheckCircle2 className="h-3 w-3 lg:h-4 lg:w-4 text-green-600 flex-shrink-0" aria-hidden="true" />
-            <span>인증 완료</span>
+            <span>인증 완료 (클릭하여 상세 정보 보기)</span>
           </div>
           <div className="flex items-center gap-1.5 lg:gap-2">
             <Clock className="h-3 w-3 lg:h-4 lg:w-4 text-yellow-600 flex-shrink-0" aria-hidden="true" />
-            <span>인증 대기</span>
+            <span>인증 대기 (클릭하여 상세 정보 보기)</span>
           </div>
           <div className="flex items-center gap-1.5 lg:gap-2">
             <XCircle className="h-3 w-3 lg:h-4 lg:w-4 text-red-600 flex-shrink-0" aria-hidden="true" />
@@ -493,6 +527,13 @@ export function CertificationTrackingTable({
           )}
         </div>
       </div>
+
+      {/* 인증 상세 정보 Dialog */}
+      <CertificationDetailDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        detail={selectedCertification}
+      />
     </div>
   );
 }
