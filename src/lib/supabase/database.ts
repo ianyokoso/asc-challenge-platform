@@ -316,15 +316,11 @@ export async function submitCertification(data: {
       user_id: data.user_id,
       track_id: data.track_id,
       user_track_id: data.user_track_id,
+      certification_url: data.certification_url || '', // 빈 문자열이라도 항상 포함 (DB NOT NULL 제약 대응)
       certification_date: data.certification_date,
       status: 'submitted',
       period_id: activePeriod?.id || null, // 활성 기수 ID 자동 할당
     };
-    
-    // certification_url이 제공된 경우에만 추가 (빈 문자열이 아닌 경우)
-    if (data.certification_url && data.certification_url.trim()) {
-      certificationData.certification_url = data.certification_url;
-    }
     
     // notes가 제공된 경우 추가
     if (data.notes) {

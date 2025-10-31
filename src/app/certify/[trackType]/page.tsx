@@ -67,11 +67,15 @@ import {
     // Fetch active period
     const { data: activePeriod, isLoading: periodLoading } = useActivePeriod();
 
-    // Get track for this specific track type
-    const currentTrack = userTracks?.find(ut => ut.track?.type === trackType);
+  // Get track for this specific track type
+  const currentTrack = userTracks?.find(ut => ut.track?.type === trackType);
 
-    // Fetch last certification date for weekly tracks
-    useEffect(() => {
+  // 트랙 타입별 폼 설정
+  const isTaskBasedTrack = trackType === 'builder' || trackType === 'sales';
+  const isWeeklyTrack = trackType === 'builder' || trackType === 'long-form' || trackType === 'sales';
+
+  // Fetch last certification date for weekly tracks
+  useEffect(() => {
       const fetchLastCert = async () => {
         if (!userId || !currentTrack?.track_id) return;
         
@@ -227,9 +231,9 @@ import {
           user_id: userId,
           track_id: currentTrack.track_id,
           user_track_id: currentTrack.id,
-          certification_url: isTaskBasedTrack ? '' : certificationUrl.trim(),
+          certification_url: isTaskBasedTrack ? '' : certificationUrl.trim(), // 빌더/세일즈는 빈 문자열
           certification_date: certificationDate,
-          notes: notes.trim() || undefined,
+          notes: notes.trim() || undefined, // 빌더/세일즈는 notes 필수
         });
 
         if (result) {
@@ -322,10 +326,6 @@ import {
         </>
       );
     }
-
-    // 트랙 타입별 폼 설정
-    const isTaskBasedTrack = trackType === 'builder' || trackType === 'sales';
-    const isWeeklyTrack = trackType === 'builder' || trackType === 'long-form' || trackType === 'sales';
 
     return (
       <>
