@@ -162,7 +162,10 @@ export async function GET(request: NextRequest) {
 
     // 3. 각 트랙별로 데이터 처리
     for (const track of tracks) {
-      const requiredDates = getCohortRequiredDates(periodStart, periodEnd, track.type);
+      // 오늘까지의 인증 필요 날짜만 포함 (미래 날짜는 제외)
+      const today = format(toKSTMidnight(new Date()), 'yyyy-MM-dd');
+      const allRequiredDates = getCohortRequiredDates(periodStart, periodEnd, track.type);
+      const requiredDates = allRequiredDates.filter(date => date <= today);
 
       // 해당 트랙의 참여자 조회 (관리자용 - 활성 사용자만)
       const { data: userTracks, error: userTracksError } = await supabase
@@ -254,22 +257,29 @@ export async function GET(request: NextRequest) {
             
             // console.log(`[API] 📅 ${user.discord_username} - ${date}: ${cert.status} → ${certStatus}`); // 성능 향상을 위해 로깅 제거
           } else {
-            const today = format(new Date(), 'yyyy-MM-dd');
             // 기수 기간 내의 날짜인지 확인
             const isRequiredDate = requiredDates.includes(date);
-            certificationsByDate[date] = {
-              status: isRequiredDate 
-                ? (date > today ? 'not-required' : 'missing')
-                : 'not-in-period', // 기수 기간 밖의 날짜
-              url: null,
-              submittedAt: null,
-            };
+            if (isRequiredDate) {
+              // 오늘까지의 필수 날짜인데 인증이 없으면 미인증
+              certificationsByDate[date] = {
+                status: 'missing',
+                url: null,
+                submittedAt: null,
+              };
+            } else {
+              // 기수 기간 밖의 날짜 또는 requiredDates에 없는 날짜
+              certificationsByDate[date] = {
+                status: 'not-required',
+                url: null,
+                submittedAt: null,
+              };
+            }
           }
         });
 
         const totalCertified = Object.values(certificationsByDate).filter((c: any) => c.status === 'certified').length;
-        // 숏폼 트랙의 경우 주말이 이미 requiredDates에서 제외되어 있으므로 그대로 사용
-        const totalRequired = requiredDates.filter(date => date <= format(new Date(), 'yyyy-MM-dd')).length;
+        // requiredDates는 이미 오늘까지의 날짜만 포함함
+        const totalRequired = requiredDates.length;
         const completionRate = totalRequired > 0 ? (totalCertified / totalRequired) * 100 : 0;
 
         return {
