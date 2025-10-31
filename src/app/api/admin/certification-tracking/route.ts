@@ -162,10 +162,8 @@ export async function GET(request: NextRequest) {
 
     // 3. 각 트랙별로 데이터 처리
     for (const track of tracks) {
-      // 오늘까지의 인증 필요 날짜만 포함 (미래 날짜는 제외)
-      const today = format(toKSTMidnight(new Date()), 'yyyy-MM-dd');
-      const allRequiredDates = getCohortRequiredDates(periodStart, periodEnd, track.type);
-      const requiredDates = allRequiredDates.filter(date => date <= today);
+      // 기수 기간 내의 모든 인증 필요 날짜 포함 (미래 날짜도 포함)
+      const requiredDates = getCohortRequiredDates(periodStart, periodEnd, track.type);
 
       // 해당 트랙의 참여자 조회 (관리자용 - 활성 사용자만)
       const { data: userTracks, error: userTracksError } = await supabase
@@ -260,12 +258,24 @@ export async function GET(request: NextRequest) {
             // 기수 기간 내의 날짜인지 확인
             const isRequiredDate = requiredDates.includes(date);
             if (isRequiredDate) {
-              // 오늘까지의 필수 날짜인데 인증이 없으면 미인증
-              certificationsByDate[date] = {
-                status: 'missing',
-                url: null,
-                submittedAt: null,
-              };
+              // 오늘 날짜 기준으로 미래/과거 판단 (KST 기준)
+              const today = format(toKSTMidnight(new Date()), 'yyyy-MM-dd');
+              
+              if (date > today) {
+                // 미래 날짜: 인증 대기
+                certificationsByDate[date] = {
+                  status: 'pending',
+                  url: null,
+                  submittedAt: null,
+                };
+              } else {
+                // 과거/오늘 날짜인데 인증이 없으면 미인증
+                certificationsByDate[date] = {
+                  status: 'missing',
+                  url: null,
+                  submittedAt: null,
+                };
+              }
             } else {
               // 기수 기간 밖의 날짜 또는 requiredDates에 없는 날짜
               certificationsByDate[date] = {
@@ -278,8 +288,9 @@ export async function GET(request: NextRequest) {
         });
 
         const totalCertified = Object.values(certificationsByDate).filter((c: any) => c.status === 'certified').length;
-        // requiredDates는 이미 오늘까지의 날짜만 포함함
-        const totalRequired = requiredDates.length;
+        // 완료율 계산은 오늘까지의 날짜만 포함 (미래 날짜 제외)
+        const today = format(toKSTMidnight(new Date()), 'yyyy-MM-dd');
+        const totalRequired = requiredDates.filter(date => date <= today).length;
         const completionRate = totalRequired > 0 ? (totalCertified / totalRequired) * 100 : 0;
 
         return {
