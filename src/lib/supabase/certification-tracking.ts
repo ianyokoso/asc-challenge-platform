@@ -452,7 +452,7 @@ export async function getTrackCertificationFeed(
         submitted_at,
         notes,
         status,
-        user:users!inner(
+        user:users!certifications_user_id_fkey!inner(
           id,
           discord_username,
           discord_avatar_url
