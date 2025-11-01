@@ -19,6 +19,7 @@ export interface CertificationTrackingData {
           status: 'certified' | 'pending' | 'missing' | 'not-required';
           url: string | null;
           submittedAt: string | null;
+          notes: string | null;
         };
       };
       totalCertified: number;
