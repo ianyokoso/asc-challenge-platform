@@ -49,6 +49,7 @@ export function CertificationTrackingTable({
     status: 'certified' | 'pending' | 'missing' | 'not-required';
     url: string | null;
     submittedAt: string | null;
+    notes: string | null;
     date: string;
     userName: string;
     userAvatar: string | null;
@@ -106,7 +107,7 @@ export function CertificationTrackingTable({
 
   // 인증 상세 보기
   const handleCertificationClick = (
-    cert: { status: string; url: string | null; submittedAt: string | null },
+    cert: { status: string; url: string | null; submittedAt: string | null; notes: string | null },
     date: string,
     userName: string,
     userAvatar: string | null
@@ -115,6 +116,7 @@ export function CertificationTrackingTable({
       status: cert.status as 'certified' | 'pending' | 'missing' | 'not-required',
       url: cert.url,
       submittedAt: cert.submittedAt,
+      notes: cert.notes,
       date,
       userName,
       userAvatar,

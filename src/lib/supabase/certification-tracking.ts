@@ -41,6 +41,7 @@ export interface TrackCertificationSummary {
         status: 'certified' | 'pending' | 'missing' | 'not-required';
         url: string | null;
         submittedAt: string | null;
+        notes: string | null;
       };
     };
     totalCertified: number;
@@ -48,6 +49,21 @@ export interface TrackCertificationSummary {
     completionRate: number;
   }[];
   dates: string[]; // 해당 트랙의 인증 필요 날짜 목록
+}
+
+export interface CertificationFeedItem {
+  id: string;
+  userId: string;
+  userName: string;
+  userAvatar: string | null;
+  trackId: string;
+  trackName: string;
+  trackType: string;
+  certificationDate: string;
+  submittedAt: string;
+  notes: string | null;
+  url: string | null;
+  status: string;
 }
 
 /**
@@ -159,7 +175,7 @@ export async function getAllTracksCertificationData(
 
       const { data: certifications, error: certificationsError } = await supabase
         .from('certifications')
-        .select('user_id, certification_date, certification_url, submitted_at, status')
+        .select('user_id, certification_date, certification_url, submitted_at, status, notes')
         .eq('track_id', track.id)
         .gte('certification_date', startDate)
         .lte('certification_date', endDate);
@@ -197,6 +213,7 @@ export async function getAllTracksCertificationData(
               status: certStatus,
               url: cert.certification_url,
               submittedAt: cert.submitted_at,
+              notes: cert.notes,
             };
             
             console.log(`[getAllTracksCertificationData] 📅 ${user.discord_username} - ${date}: ${cert.status} → ${certStatus}`);
@@ -207,6 +224,7 @@ export async function getAllTracksCertificationData(
               status: date > today ? 'not-required' : 'missing',
               url: null,
               submittedAt: null,
+              notes: null,
             };
           }
         });
@@ -309,7 +327,7 @@ export async function getTrackCertificationData(
 
     const { data: certifications, error: certificationsError } = await supabase
       .from('certifications')
-      .select('user_id, certification_date, certification_url, submitted_at, status')
+      .select('user_id, certification_date, certification_url, submitted_at, status, notes')
       .eq('track_id', track.id)
       .gte('certification_date', startDate)
       .lte('certification_date', endDate);
@@ -346,6 +364,7 @@ export async function getTrackCertificationData(
             status: certStatus,
             url: cert.certification_url,
             submittedAt: cert.submitted_at,
+            notes: cert.notes,
           };
         } else {
           // 오늘 이후 날짜는 'not-required', 이전 날짜는 'missing'
@@ -354,6 +373,7 @@ export async function getTrackCertificationData(
             status: date > today ? 'not-required' : 'missing',
             url: null,
             submittedAt: null,
+            notes: null,
           };
         }
       });
@@ -382,6 +402,120 @@ export async function getTrackCertificationData(
     };
   } catch (error) {
     console.error('[getTrackCertificationData] Unexpected error:', error);
+    throw error;
+  }
+}
+
+/**
+ * 빌더/세일즈 트랙의 인증 피드 데이터 조회 (관리자 전용)
+ * 시간순으로 정렬된 인증 목록 반환
+ */
+export async function getTrackCertificationFeed(
+  trackType: 'builder' | 'sales',
+  periodId?: string
+): Promise<CertificationFeedItem[]> {
+  const supabase = createClient();
+  
+  try {
+    console.log('[getTrackCertificationFeed] 🚀 Fetching feed for:', { trackType, periodId });
+    
+    // 1. 해당 타입의 트랙 찾기
+    const { data: track, error: trackError } = await supabase
+      .from('tracks')
+      .select('id, name, type')
+      .eq('type', trackType)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (trackError) {
+      console.error('[getTrackCertificationFeed] Error fetching track:', trackError);
+      throw trackError;
+    }
+
+    if (!track) {
+      console.log('[getTrackCertificationFeed] No active track found for type:', trackType);
+      return [];
+    }
+
+    // 2. 인증 데이터 조회 (기수 필터링 포함)
+    let query = supabase
+      .from('certifications')
+      .select(`
+        id,
+        user_id,
+        track_id,
+        certification_date,
+        certification_url,
+        submitted_at,
+        notes,
+        status,
+        user:users!inner(
+          id,
+          discord_username,
+          discord_avatar_url
+        )
+      `)
+      .eq('track_id', track.id)
+      .in('status', ['submitted', 'approved']) // 제출/승인된 인증만
+      .order('submitted_at', { ascending: false }); // 최신순
+
+    // 기수 필터링 (periodId가 제공된 경우)
+    if (periodId) {
+      // user_tracks를 통해 해당 기수의 사용자만 필터링
+      const { data: userTracksData, error: userTracksError } = await supabase
+        .from('user_tracks')
+        .select('user_id')
+        .eq('track_id', track.id)
+        .eq('period_id', periodId)
+        .eq('is_active', true);
+
+      if (userTracksError) {
+        console.error('[getTrackCertificationFeed] Error fetching user tracks:', userTracksError);
+        throw userTracksError;
+      }
+
+      if (!userTracksData || userTracksData.length === 0) {
+        console.log('[getTrackCertificationFeed] No users in this period');
+        return [];
+      }
+
+      const userIds = userTracksData.map(ut => ut.user_id);
+      query = query.in('user_id', userIds);
+    }
+
+    const { data: certifications, error: certificationsError } = await query;
+
+    if (certificationsError) {
+      console.error('[getTrackCertificationFeed] Error fetching certifications:', certificationsError);
+      throw certificationsError;
+    }
+
+    if (!certifications || certifications.length === 0) {
+      console.log('[getTrackCertificationFeed] No certifications found');
+      return [];
+    }
+
+    console.log('[getTrackCertificationFeed] ✅ Found', certifications.length, 'certifications');
+
+    // 3. 데이터 변환
+    const feedItems: CertificationFeedItem[] = certifications.map((cert: any) => ({
+      id: cert.id,
+      userId: cert.user_id,
+      userName: cert.user?.discord_username || 'Unknown User',
+      userAvatar: cert.user?.discord_avatar_url || null,
+      trackId: track.id,
+      trackName: track.name,
+      trackType: track.type,
+      certificationDate: cert.certification_date,
+      submittedAt: cert.submitted_at,
+      notes: cert.notes,
+      url: cert.certification_url,
+      status: cert.status,
+    }));
+
+    return feedItems;
+  } catch (error) {
+    console.error('[getTrackCertificationFeed] Unexpected error:', error);
     throw error;
   }
 }

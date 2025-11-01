@@ -16,11 +16,15 @@ import {
   Video,
   FileText,
   Code,
-  TrendingUp
+  TrendingUp,
+  LayoutGrid,
+  List
 } from 'lucide-react';
 import { CertificationTrackingTable } from '@/components/admin/CertificationTrackingTable';
 import { CertificationSummaryTable } from '@/components/admin/CertificationSummaryTable';
+import { CertificationFeedView } from '@/components/admin/CertificationFeedView';
 import { useAllTracksCertificationData } from '@/hooks/useCertificationTracking';
+import { useCertificationFeed } from '@/hooks/useCertificationFeed';
 import { AdminPageGuard } from '@/components/guards/AdminPageGuard';
 import { useToast } from '@/hooks/use-toast';
 
@@ -41,8 +45,10 @@ function CertificationTrackingPageContent() {
   // URL 쿼리에서 periodId와 track 읽기
   const periodIdFromUrl = searchParams.get('periodId');
   const trackFromUrl = searchParams.get('track');
+  const viewModeFromUrl = searchParams.get('view') as 'table' | 'feed' | null;
   const [selectedPeriodId, setSelectedPeriodId] = useState<string | undefined>(periodIdFromUrl || undefined);
   const [selectedTrack, setSelectedTrack] = useState<string | undefined>(trackFromUrl || undefined);
+  const [viewMode, setViewMode] = useState<'table' | 'feed'>(viewModeFromUrl || 'table');
 
   const { 
     data: apiResponse, 
@@ -51,6 +57,20 @@ function CertificationTrackingPageContent() {
     refetch,
     realtimeStatus 
   } = useAllTracksCertificationData(selectedPeriodId);
+
+  // 빌더/세일즈 피드 데이터 (뷰 모드가 feed이고 해당 트랙일 때만 로드)
+  const shouldLoadBuilderFeed = viewMode === 'feed' && selectedTrack === 'builder';
+  const shouldLoadSalesFeed = viewMode === 'feed' && selectedTrack === 'sales';
+  
+  const { 
+    data: builderFeed, 
+    isLoading: isLoadingBuilderFeed 
+  } = useCertificationFeed('builder', selectedPeriodId, shouldLoadBuilderFeed);
+  
+  const { 
+    data: salesFeed, 
+    isLoading: isLoadingSalesFeed 
+  } = useCertificationFeed('sales', selectedPeriodId, shouldLoadSalesFeed);
 
   // API 응답에서 데이터 분리
   const trackData = apiResponse?.data || null;
@@ -71,6 +91,14 @@ function CertificationTrackingPageContent() {
     setSelectedPeriodId(periodId);
     const params = new URLSearchParams(searchParams.toString());
     params.set('periodId', periodId);
+    router.replace(`/admin/tracking?${params.toString()}`, { scroll: false });
+  };
+
+  // 뷰 모드 전환 핸들러
+  const handleViewModeChange = (mode: 'table' | 'feed') => {
+    setViewMode(mode);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('view', mode);
     router.replace(`/admin/tracking?${params.toString()}`, { scroll: false });
   };
 
@@ -339,38 +367,124 @@ function CertificationTrackingPageContent() {
             </TabsContent>
 
             {/* 빌더 트랙 (주간) */}
-            <TabsContent value="builder">
-              {trackData.filter(t => t.trackType === 'builder').map((track) => (
-                <CertificationTrackingTable
-                  key={track.trackId}
-                  data={track}
-                />
-              ))}
-              {trackData.filter(t => t.trackType === 'builder').length === 0 && (
-                <Card className="p-12 text-center">
-                  <Code className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-body text-gray-600">
-                    빌더 트랙 참여자가 없습니다.
+            <TabsContent value="builder" className="space-y-4">
+              {/* 뷰 모드 토글 */}
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-h4 font-heading text-gray-900">빌더 트랙 인증 현황</h3>
+                  <p className="text-body-sm text-gray-600 mt-1">
+                    과제 인증 내용을 테이블 또는 피드 형태로 확인하세요
                   </p>
-                </Card>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant={viewMode === 'table' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => handleViewModeChange('table')}
+                    className="gap-2"
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                    <span>테이블</span>
+                  </Button>
+                  <Button
+                    variant={viewMode === 'feed' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => handleViewModeChange('feed')}
+                    className="gap-2"
+                  >
+                    <List className="h-4 w-4" />
+                    <span>피드</span>
+                  </Button>
+                </div>
+              </div>
+
+              {/* 테이블 뷰 */}
+              {viewMode === 'table' && (
+                <>
+                  {trackData.filter(t => t.trackType === 'builder').map((track) => (
+                    <CertificationTrackingTable
+                      key={track.trackId}
+                      data={track}
+                    />
+                  ))}
+                  {trackData.filter(t => t.trackType === 'builder').length === 0 && (
+                    <Card className="p-12 text-center">
+                      <Code className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-body text-gray-600">
+                        빌더 트랙 참여자가 없습니다.
+                      </p>
+                    </Card>
+                  )}
+                </>
+              )}
+
+              {/* 피드 뷰 */}
+              {viewMode === 'feed' && (
+                <CertificationFeedView 
+                  items={builderFeed || []} 
+                  isLoading={isLoadingBuilderFeed}
+                />
               )}
             </TabsContent>
 
             {/* 세일즈 트랙 (주간) */}
-            <TabsContent value="sales">
-              {trackData.filter(t => t.trackType === 'sales').map((track) => (
-                <CertificationTrackingTable
-                  key={track.trackId}
-                  data={track}
-                />
-              ))}
-              {trackData.filter(t => t.trackType === 'sales').length === 0 && (
-                <Card className="p-12 text-center">
-                  <TrendingUp className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-body text-gray-600">
-                    세일즈 트랙 참여자가 없습니다.
+            <TabsContent value="sales" className="space-y-4">
+              {/* 뷰 모드 토글 */}
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-h4 font-heading text-gray-900">세일즈 트랙 인증 현황</h3>
+                  <p className="text-body-sm text-gray-600 mt-1">
+                    과제 인증 내용을 테이블 또는 피드 형태로 확인하세요
                   </p>
-                </Card>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant={viewMode === 'table' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => handleViewModeChange('table')}
+                    className="gap-2"
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                    <span>테이블</span>
+                  </Button>
+                  <Button
+                    variant={viewMode === 'feed' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => handleViewModeChange('feed')}
+                    className="gap-2"
+                  >
+                    <List className="h-4 w-4" />
+                    <span>피드</span>
+                  </Button>
+                </div>
+              </div>
+
+              {/* 테이블 뷰 */}
+              {viewMode === 'table' && (
+                <>
+                  {trackData.filter(t => t.trackType === 'sales').map((track) => (
+                    <CertificationTrackingTable
+                      key={track.trackId}
+                      data={track}
+                    />
+                  ))}
+                  {trackData.filter(t => t.trackType === 'sales').length === 0 && (
+                    <Card className="p-12 text-center">
+                      <TrendingUp className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-body text-gray-600">
+                        세일즈 트랙 참여자가 없습니다.
+                      </p>
+                    </Card>
+                  )}
+                </>
+              )}
+
+              {/* 피드 뷰 */}
+              {viewMode === 'feed' && (
+                <CertificationFeedView 
+                  items={salesFeed || []} 
+                  isLoading={isLoadingSalesFeed}
+                />
               )}
             </TabsContent>
           </Tabs>

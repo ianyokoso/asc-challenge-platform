@@ -9,7 +9,8 @@ import {
   Calendar,
   ExternalLink,
   User,
-  Link as LinkIcon
+  Link as LinkIcon,
+  FileText
 } from 'lucide-react';
 import {
   Dialog,
@@ -26,6 +27,7 @@ interface CertificationDetail {
   status: 'certified' | 'pending' | 'missing' | 'not-required';
   url: string | null;
   submittedAt: string | null;
+  notes: string | null;
   date: string;
   userName: string;
   userAvatar: string | null;
@@ -179,6 +181,23 @@ export function CertificationDetailDialog({
               </div>
               <div className="pl-6 text-base text-gray-900">
                 {formattedSubmitTime}
+              </div>
+            </div>
+          )}
+
+          {/* 인증 메모 */}
+          {detail.notes && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                <FileText className="h-4 w-4" />
+                <span>과제 인증 내용</span>
+              </div>
+              <div className="pl-6">
+                <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <p className="text-sm text-gray-900 whitespace-pre-wrap break-words">
+                    {detail.notes}
+                  </p>
+                </div>
               </div>
             </div>
           )}
