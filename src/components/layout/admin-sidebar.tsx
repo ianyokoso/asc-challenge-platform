@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
-  LayoutDashboard,
   Users,
   Settings,
   Trophy,
@@ -17,19 +16,14 @@ import { EditModeToggle } from '@/components/admin/EditModeToggle';
 
 const navigation = [
   {
-    name: '대시보드',
-    href: '/admin',
-    icon: LayoutDashboard,
+    name: '인증 현황',
+    href: '/admin/tracking',
+    icon: BarChart3,
   },
   {
     name: '사용자 관리',
     href: '/admin/users',
     icon: Users,
-  },
-  {
-    name: '인증 현황',
-    href: '/admin/tracking',
-    icon: BarChart3,
   },
   {
     name: '인증 관리',
