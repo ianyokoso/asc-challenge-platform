@@ -77,6 +77,18 @@ function CertificationTrackingPageContent() {
   const periods = apiResponse?.periods || [];
   const selectedPeriod = apiResponse?.selectedPeriod || null;
 
+  // 🔍 디버깅: 트랙 타입 확인
+  useEffect(() => {
+    if (trackData) {
+      console.log('[Tracking Page] 📊 Track data details:', trackData.map(t => ({
+        trackName: t.trackName,
+        trackType: t.trackType,
+        participantCount: t.participants.length,
+        datesCount: t.dates.length,
+      })));
+    }
+  }, [trackData]);
+
   // 선택된 기수가 변경되면 URL 업데이트
   useEffect(() => {
     if (selectedPeriod && selectedPeriod.id !== periodIdFromUrl) {
