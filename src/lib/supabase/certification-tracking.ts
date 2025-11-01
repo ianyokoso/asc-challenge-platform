@@ -198,6 +198,7 @@ export async function getAllTracksCertificationData(
             status: 'certified' | 'pending' | 'missing' | 'not-required';
             url: string | null;
             submittedAt: string | null;
+            notes: string | null;
           };
         } = {};
 
@@ -349,6 +350,7 @@ export async function getTrackCertificationData(
           status: 'certified' | 'pending' | 'missing' | 'not-required';
           url: string | null;
           submittedAt: string | null;
+          notes: string | null;
         };
       } = {};
 
