@@ -395,7 +395,9 @@ export async function getCertifications(
 
   if (year && month) {
     const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
-    const endDate = `${year}-${String(month).padStart(2, '0')}-31`;
+    // 실제 월의 마지막 날 계산 (month가 1-based이므로 그대로 사용하면 다음 달의 0일 = 이번 달 마지막 날)
+    const lastDay = new Date(year, month, 0).getDate();
+    const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
     query = query.gte('certification_date', startDate).lte('certification_date', endDate);
   }
 
