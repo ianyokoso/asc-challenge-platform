@@ -460,10 +460,13 @@ export async function getTrackCertificationFeed(
       `)
       .eq('track_id', track.id)
       .in('status', ['submitted', 'approved']) // 제출/승인된 인증만
-      .order('submitted_at', { ascending: false }); // 최신순
+      .order('certification_date', { ascending: false }) // 인증 날짜 기준 최신순
+      .order('submitted_at', { ascending: false, nullsLast: true }); // 제출 시간 기준 (null은 마지막)
 
     // 기수 필터링 (periodId가 제공된 경우)
     if (periodId) {
+      console.log('[getTrackCertificationFeed] Applying period filter:', { periodId, trackId: track.id });
+      
       // user_tracks를 통해 해당 기수의 사용자만 필터링
       const { data: userTracksData, error: userTracksError } = await supabase
         .from('user_tracks')
@@ -477,12 +480,15 @@ export async function getTrackCertificationFeed(
         throw userTracksError;
       }
 
+      console.log('[getTrackCertificationFeed] User tracks found:', userTracksData?.length || 0);
+
       if (!userTracksData || userTracksData.length === 0) {
-        console.log('[getTrackCertificationFeed] No users in this period');
+        console.log('[getTrackCertificationFeed] ❌ No users in this period for track:', track.name);
         return [];
       }
 
       const userIds = userTracksData.map(ut => ut.user_id);
+      console.log('[getTrackCertificationFeed] Filtering by user IDs:', userIds);
       query = query.in('user_id', userIds);
     }
 
@@ -494,11 +500,12 @@ export async function getTrackCertificationFeed(
     }
 
     if (!certifications || certifications.length === 0) {
-      console.log('[getTrackCertificationFeed] No certifications found');
+      console.log('[getTrackCertificationFeed] ❌ No certifications found for track:', track.name);
       return [];
     }
 
     console.log('[getTrackCertificationFeed] ✅ Found', certifications.length, 'certifications');
+    console.log('[getTrackCertificationFeed] Sample certification:', certifications[0]);
 
     // 3. 데이터 변환
     const feedItems: CertificationFeedItem[] = certifications.map((cert: any) => ({
