@@ -68,10 +68,10 @@ function getAnchorDate(track: TrackType, dateKST: Date): Date {
   }
   
   if (track === 'sales') {
-    // 세일즈: 다음 화요일 기준
+    // 세일즈: 해당 주의 화요일 기준
     const target = 2; // 화
     let diff = target - day;
-    if (diff <= 0) diff += 7; // 이미 지났으면 다음주 화요일
+    if (diff < 0) diff += 7; // 화요일이 지났으면 다음주 화요일 (당일은 포함)
     return addDaysKST(startOfDayKST(dateKST), diff);
   }
   
