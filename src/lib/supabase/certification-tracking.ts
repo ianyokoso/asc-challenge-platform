@@ -461,7 +461,7 @@ export async function getTrackCertificationFeed(
       .eq('track_id', track.id)
       .in('status', ['submitted', 'approved']) // 제출/승인된 인증만
       .order('certification_date', { ascending: false }) // 인증 날짜 기준 최신순
-      .order('submitted_at', { ascending: false, nullsLast: true }); // 제출 시간 기준 (null은 마지막)
+      .order('submitted_at', { ascending: false, nullsFirst: false }); // 제출 시간 기준 (null은 마지막)
 
     // 기수 필터링 (periodId가 제공된 경우)
     if (periodId) {
